@@ -1,789 +1,1328 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Busy License Analytics Dashboard</title>
-    <!-- Chart.js and DataLabels Plugin -->
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ChartDataLabels Plugin CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    
-    <style>
-        :root {
-            --bg-primary: #0a0e27;
-            --bg-secondary: #131738;
-            --bg-card: #1a1f4e;
-            --bg-card-hover: #222866;
-            --text-primary: #e8e8e8;
-            --text-secondary: #8b8fa3;
-            --accent-blue: #4a6cf7;
-            --accent-green: #22c55e;
-            --accent-red: #ef4444;
-            --accent-yellow: #eab308;
-            --accent-purple: #a855f7;
-            --accent-orange: #f97316;
-            --accent-cyan: #06b6d4;
-            --border-color: #2a2f5a;
-            --ca-color: #4a6cf7;
-            --ac-color: #a855f7;
-            --gp-color: #22c55e;
-            --rg-color: #ef4444;
+    <!-- Pako (Gzip fallback) & PapaParse CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#111827',
+                        cardBorder: '#1f2937',
+                        accentBlue: '#3b82f6',
+                        accentIndigo: '#6366f1',
+                        accentGreen: '#10b981',
+                        accentRed: '#ef4444',
+                        accentPurple: '#8b5cf6',
+                        accentAmber: '#f59e0b'
+                    }
+                }
+            }
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
-        .header { background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card)); padding: 20px 40px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 24px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header .subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
-        .upload-section { display: flex; align-items: center; gap: 12px; }
-        .upload-btn { background: linear-gradient(135deg, var(--bg-card), var(--bg-card-hover)); border: 1px solid var(--border-color); color: white; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.3s ease; }
-        .upload-btn:hover { border-color: var(--accent-blue); background: var(--bg-card-hover); }
-        .file-info { color: var(--text-secondary); font-size: 13px; }
-        .container { max-width: 1600px; margin: 0 auto; padding: 30px 40px; }
-
-        .clickable { cursor: pointer; transition: all 0.2s ease; }
-        .clickable:hover { filter: brightness(1.2); box-shadow: 0 0 15px rgba(255,255,255,0.1); transform: translateY(-2px); }
-        .clickable-cell { cursor: pointer; color: var(--accent-blue); text-decoration: underline; font-weight: bold; }
-        .clickable-cell:hover { background: rgba(74, 108, 247, 0.1); color: white; }
-
-        .summary-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 30px; }
-        .summary-stat { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; }
-        .summary-stat .value { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-        .summary-stat .label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
-        .summary-stat.blue .value { color: var(--accent-blue); }
-        .summary-stat.green .value { color: var(--accent-green); }
-        .summary-stat.red .value { color: var(--accent-red); }
-        .summary-stat.purple .value { color: var(--accent-purple); }
-        .summary-stat.cyan .value { color: var(--accent-cyan); }
-        .summary-stat.yellow .value { color: var(--accent-yellow); }
-
-        .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-        .category-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .category-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
-        .category-card.ca { border-top: 3px solid var(--ca-color); } .category-card.ac { border-top: 3px solid var(--ac-color); } .category-card.gp { border-top: 3px solid var(--gp-color); } .category-card.rg { border-top: 3px solid var(--rg-color); }
-        
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .card-badge { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
-        .ca .card-badge { background: rgba(74, 108, 247, 0.2); color: var(--ca-color); } .ac .card-badge { background: rgba(168, 85, 247, 0.2); color: var(--ac-color); } .gp .card-badge { background: rgba(34, 197, 94, 0.2); color: var(--gp-color); } .rg .card-badge { background: rgba(239, 68, 68, 0.2); color: var(--rg-color); }
-        
-        .xl-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 16px; font-size: 11px; }
-        .xl-row { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-primary); }
-        .xl-row span { color: var(--text-secondary); }
-
-        .card-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-        .card-description { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px; min-height: 36px; }
-        
-        .card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; border-top: 1px solid var(--border-color); padding-top: 16px;}
-        .card-stat-item .stat-value { font-size: 20px; font-weight: 700; }
-        .card-stat-item .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-        .card-stat-item:nth-child(1) .stat-value { color: var(--accent-yellow); } .card-stat-item:nth-child(2) .stat-value { color: var(--accent-green); } .card-stat-item:nth-child(3) .stat-value { color: var(--accent-red); }
-
-        .charts-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-        .chart-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; }
-        .chart-container h3 { font-size: 16px; margin-bottom: 16px; color: var(--text-primary); }
-        .chart-wrapper { position: relative; height: 350px; }
-
-        .detail-page { display: none; } .detail-page.active { display: block; }
-        .back-btn { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
-        .back-btn:hover { background: var(--accent-blue); border-color: var(--accent-blue); }
-
-        .detail-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 30px; }
-        .detail-stat { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; text-align: center; }
-        .detail-stat .d-value { font-size: 24px; font-weight: 700; color: var(--accent-blue); }
-        .detail-stat .d-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-        .detail-stat:nth-child(2) .d-value { color: var(--accent-green); } .detail-stat:nth-child(3) .d-value { color: var(--accent-red); } .detail-stat:nth-child(4) .d-value { color: var(--accent-purple); } .detail-stat:nth-child(5) .d-value { color: var(--accent-cyan); } .detail-stat:nth-child(6) .d-value { color: var(--accent-orange); } .detail-stat:nth-child(7) .d-value { color: var(--accent-yellow); } .detail-stat:nth-child(8) .d-value { color: #f472b6; } .detail-stat:nth-child(9) .d-value { color: #34d399; }
-        .detail-title { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-        .badge-large { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
-        .detail-desc { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
-
-        .table-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 30px; overflow-x: auto; }
-        .table-section h3 { margin-bottom: 16px; font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: var(--bg-card); color: var(--text-secondary); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border-color); position: sticky; top: 0; }
-        td { padding: 10px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-        tr:hover td { background: rgba(74, 108, 247, 0.1); }
-
-        .overlap-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
-        .overlap-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; }
-        .overlap-card .overlap-value { font-size: 32px; font-weight: 700; color: var(--accent-orange); }
-        .overlap-card .overlap-label { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
-
-        .welcome-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
-        .welcome-screen h2 { font-size: 28px; margin-bottom: 12px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .welcome-screen p { color: var(--text-secondary); font-size: 15px; max-width: 550px; line-height: 1.6; }
-        .spinner { width: 44px; height: 44px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .number-format { font-variant-numeric: tabular-nums; }
-        .scroll-table { max-height: 500px; overflow-y: auto; }
-        .scroll-table::-webkit-scrollbar { width: 6px; } .scroll-table::-webkit-scrollbar-track { background: var(--bg-card); } .scroll-table::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-
-        /* MODAL STYLES */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 14, 39, 0.9); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--bg-card); width: 100%; max-width: 1400px; max-height: 90vh; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .modal-header h2 { font-size: 18px; color: var(--text-primary); }
-        .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; }
-        .modal-close:hover { color: var(--accent-red); }
-        .modal-body { overflow: auto; padding: 0; flex: 1; }
-        .raw-table th, .raw-table td { white-space: nowrap; font-size: 12px; padding: 8px 12px; }
-
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col custom-scrollbar">
 
-<header class="header">
-    <div>
-        <h1>📊 Busy License Analytics Dashboard</h1>
-        <div class="subtitle">Comprehensive license tracking, cross-category analysis &amp; renewal intelligence</div>
-    </div>
-    <div class="upload-section">
-        <input type="file" id="csvFile" accept=".csv,.gz" style="display:none" onchange="handleFile(event)">
-        <button class="upload-btn" onclick="document.getElementById('csvFile').click()">Manual Upload</button>
-        <span class="file-info" id="fileInfo">Initializing...</span>
-    </div>
-</header>
+    <!-- Top Navigation Bar -->
+    <header class="bg-cardBg/90 backdrop-blur border-b border-cardBorder sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="showLandingPage()">
+            <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                <i class="fas fa-chart-pie text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-white leading-tight">Busy License Analytics</h1>
+                <p class="text-xs text-gray-400">Enterprise Dashboard & Intelligence</p>
+            </div>
+        </div>
 
-<div class="container">
-    <div id="welcomeScreen" class="welcome-screen">
-        <div class="spinner" id="spinner"></div>
-        <h2 id="loadingTitle">Loading Dashboard Data...</h2>
-        <p id="loadingDesc">Decompressing and parsing <code>data.csv.gz</code> from repository.</p>
+        <div id="navCategoryButtons" class="hidden md:flex items-center space-x-2">
+            <button onclick="showLandingPage()" id="navBtnAll" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 transition">Overview</button>
+            <button onclick="showCategoryPage('CA')" id="navBtnCA" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition">CA</button>
+            <button onclick="showCategoryPage('Accountant')" id="navBtnAC" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition">Accountant</button>
+            <button onclick="showCategoryPage('GSTP')" id="navBtnGP" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition">GSTP</button>
+            <button onclick="showCategoryPage('Regular')" id="navBtnRG" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition">Regular</button>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <label for="manualFileInput" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-gray-300 border border-slate-700 rounded-lg cursor-pointer transition">
+                <i class="fas fa-upload text-indigo-400"></i>
+                <span>Upload CSV / GZ</span>
+                <input type="file" id="manualFileInput" accept=".csv, .gz" class="hidden" onchange="handleManualFileUpload(event)">
+            </label>
+            <div id="loadingBadge" class="flex items-center space-x-2 px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-semibold">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading Data...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 p-6 max-w-[1600px] w-full mx-auto space-y-6">
+
+        <!-- LANDING PAGE VIEW -->
+        <div id="landingPageView" class="space-y-6">
+            
+            <!-- Overall System Summary Bar -->
+            <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg cursor-pointer hover:border-indigo-500/40 transition" onclick="openModal('All Subscriptions', allData)">
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Total Subscriptions</p>
+                    <p class="text-2xl font-black text-white mt-1" id="sumTotalSubs">0</p>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg cursor-pointer hover:border-emerald-500/40 transition" onclick="openModal('Active Subscriptions', allData.filter(r=>getSubscriptionStatus(r)==='Active'))">
+                    <p class="text-xs text-emerald-400 uppercase font-semibold">Active Subscriptions</p>
+                    <p class="text-2xl font-black text-emerald-400 mt-1" id="sumActiveSubs">0</p>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg cursor-pointer hover:border-red-500/40 transition" onclick="openModal('Expired Subscriptions', allData.filter(r=>getSubscriptionStatus(r)==='Expired'))">
+                    <p class="text-xs text-red-400 uppercase font-semibold">Expired Subscriptions</p>
+                    <p class="text-2xl font-black text-red-400 mt-1" id="sumExpiredSubs">0</p>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Unique COMPGUIDs</p>
+                    <p class="text-2xl font-black text-indigo-400 mt-1" id="sumUniqueComp">0</p>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Unique GSTINs</p>
+                    <p class="text-2xl font-black text-purple-400 mt-1" id="sumUniqueGstin">0</p>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Active Retention</p>
+                    <p class="text-2xl font-black text-amber-400 mt-1" id="sumHealth">0%</p>
+                </div>
+            </div>
+
+            <!-- 4 License Category Overview Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" id="categoryCardsContainer">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Landing Page Analytics Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Customer Cluster Chart -->
+                <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-white text-base flex items-center">
+                            <i class="fas fa-users-gear text-indigo-400 mr-2"></i> Top 10 Customer Clusters & RDP Adoption
+                        </h3>
+                        <span class="text-xs text-gray-400 bg-slate-800 px-2.5 py-1 rounded-md">Subscriptions & Adoption %</span>
+                    </div>
+                    <div class="relative flex-1 min-h-[320px]">
+                        <canvas id="custClusterChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Partner Cluster Chart -->
+                <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-white text-base flex items-center">
+                            <i class="fas fa-handshake text-indigo-400 mr-2"></i> Top 10 Partner Clusters & RDP Adoption
+                        </h3>
+                        <span class="text-xs text-gray-400 bg-slate-800 px-2.5 py-1 rounded-md">Subscriptions & Adoption %</span>
+                    </div>
+                    <div class="relative flex-1 min-h-[320px]">
+                        <canvas id="partnerClusterChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top 15 Partners Chart -->
+            <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-white text-base flex items-center">
+                        <i class="fas fa-trophy text-amber-400 mr-2"></i> Top 15 Partners by RDP Users Sold
+                    </h3>
+                    <span class="text-xs text-gray-400 bg-slate-800 px-2.5 py-1 rounded-md">Total Subscriptions vs RDP Users</span>
+                </div>
+                <div class="relative min-h-[340px]">
+                    <canvas id="topPartnersChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CATEGORY DETAIL PAGE VIEW -->
+        <div id="categoryPageView" class="hidden space-y-6">
+            
+            <!-- Detail Page Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-cardBg border border-cardBorder rounded-xl p-5">
+                <div class="flex items-center space-x-3">
+                    <button onclick="showLandingPage()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-lg transition">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-xl font-bold text-white" id="catDetailTitle">CA Category Intelligence</h2>
+                        <p class="text-xs text-gray-400" id="catDetailSubtitle">Detailed breakdown and subscription telemetry</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-gray-400">Viewing Category:</span>
+                    <span id="catBadge" class="px-3 py-1 bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold rounded-lg uppercase">CA</span>
+                </div>
+            </div>
+
+            <!-- Category KPI Cards Grid (9 Metrics) -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="categoryKpiGrid">
+                <!-- Dynamically rendered -->
+            </div>
+
+            <!-- Model Pivot Table & License Type Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Pivot Matrix: Model x User -->
+                <div class="lg:col-span-2 bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-white text-base flex items-center">
+                            <i class="fas fa-table-cells text-indigo-400 mr-2"></i> Model Distribution (Rows: Model, Columns: User)
+                        </h3>
+                        <span class="text-xs text-gray-400">Click counts to view records</span>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar" id="modelPivotTableContainer">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- License Type Doughnut Chart -->
+                <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-white text-base flex items-center">
+                            <i class="fas fa-chart-pie text-purple-400 mr-2"></i> License Type Split
+                        </h3>
+                    </div>
+                    <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+                        <canvas id="licenseDoughnutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RDP User Distribution Table -->
+            <div class="bg-cardBg border border-cardBorder rounded-xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-white text-base flex items-center">
+                        <i class="fas fa-desktop text-indigo-400 mr-2"></i> RDP User Distribution Breakdown
+                    </h3>
+                    <span class="text-xs text-gray-400">Count of subscriptions by configured RDP Users</span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar" id="rdpDistributionTableContainer">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- RAW DATA VIEWER MODAL -->
+    <div id="rawDataModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 sm:p-6">
+        <div class="bg-cardBg border border-cardBorder rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center" id="modalTitle">
+                        <i class="fas fa-list text-indigo-400 mr-2.5"></i> Raw Subscription Records
+                    </h3>
+                    <p class="text-xs text-gray-400 mt-0.5" id="modalSubtitle">Showing pre-filtered records underlying this metric</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition">
+                    <i class="fas fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Search Controls -->
+            <div class="p-4 border-b border-cardBorder bg-slate-900/30 flex items-center justify-between gap-4">
+                <div class="relative flex-1 max-w-md">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-500 text-sm"></i>
+                    <input type="text" id="modalSearchInput" onkeyup="filterModalTable()" placeholder="Search records by Sub ID, COMPGUID, GSTIN, Partner..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="text-xs text-gray-400">
+                    <span id="modalRecordCount">0</span> records loaded
+                </div>
+            </div>
+
+            <!-- Modal Table Body -->
+            <div class="flex-1 overflow-auto p-4 custom-scrollbar">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-gray-300 border-collapse">
+                        <thead class="bg-slate-900 text-gray-400 uppercase font-semibold sticky top-0 border-b border-slate-800 z-10">
+                            <tr>
+                                <th class="p-3">Subscription ID</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">COMPGUID</th>
+                                <th class="p-3">GSTIN</th>
+                                <th class="p-3">Owner Partner</th>
+                                <th class="p-3">Model</th>
+                                <th class="p-3">User</th>
+                                <th class="p-3">License Type</th>
+                                <th class="p-3">Last Expiry</th>
+                                <th class="p-3 text-right">RDP Count</th>
+                                <th class="p-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTableBody" class="divide-y divide-slate-800/60 font-medium">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between text-xs text-gray-400">
+                <span>Note: To maintain maximum browser performance, display is capped at the top 500 records.</span>
+                <button onclick="closeModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition">Close Viewer</button>
+            </div>
+        </div>
     </div>
 
-    <div id="landingPage" class="landing-page" style="display:none;">
-        <div class="summary-bar" id="summaryBar"></div>
-        <div class="category-grid" id="categoryGrid"></div>
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // Global State & Pre-indexed Hash Maps
+        let allData = [];
+        let categoryIndices = { CA: [], Accountant: [], GSTP: [], Regular: [] };
         
-        <div class="charts-section">
-            <div class="chart-container">
-                <h3>📊 Customer Cluster Distribution × RDP Adoption % (Top 10)</h3>
-                <div class="chart-wrapper"><canvas id="customerClusterChart"></canvas></div>
-            </div>
-            <div class="chart-container">
-                <h3>📊 Partner Cluster Distribution × RDP Adoption % (Top 10)</h3>
-                <div class="chart-wrapper"><canvas id="partnerClusterChart"></canvas></div>
-            </div>
-            
-            <div class="chart-container" style="grid-column: 1 / -1;">
-                <h3>📊 Top 15 Partners by RDP Users Sold (Total Subscriptions vs Total RDP)</h3>
-                <div class="chart-wrapper"><canvas id="partnerRdpChart"></canvas></div>
-            </div>
-        </div>
-    </div>
+        let globalCompToSubs = new Map();
+        let globalGstinToSubs = new Map();
+        let globalCompToCats = new Map();
+        let globalGstinToCats = new Map();
+        let currentCategoryDataMap = new Map(); // Fast O(1) compguid lookup for RDP switch
 
-    <div id="detailPage" class="detail-page"></div>
-</div>
+        let activeCategory = null;
+        let currentModalRecords = [];
+        window.pivotCache = {};
 
-<!-- RAW DATA MODAL -->
-<div class="modal-overlay" id="rawModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalTitle">Raw Data Viewer</h2>
-            <button class="modal-close" onclick="closeRawData()">&times;</button>
-        </div>
-        <div class="modal-body scroll-table">
-            <div id="modalWarning" style="display:none; padding: 10px; background: rgba(234,179,8,0.1); color: var(--accent-yellow); text-align:center; font-size:12px; border-bottom: 1px solid var(--border-color);">
-                Showing top 500 records to maintain performance.
-            </div>
-            <table class="raw-table">
-                <thead>
-                    <tr>
-                        <th>Subscription ID</th><th>CompGUID</th><th>GSTIN</th><th>Category</th>
-                        <th>License Type</th><th>Model</th><th>User</th><th>Customer Cluster</th>
-                        <th>Partner Cluster</th><th>Owner Partner</th><th>RDP Count</th>
-                        <th>Install Date</th><th>Last Updated</th><th>Last Expiry</th><th>BLS Expiry</th>
-                    </tr>
-                </thead>
-                <tbody id="modalTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
+        // Register ChartDataLabels plugin globally
+        Chart.register(ChartDataLabels);
 
-<script>
-// ===================== GLOBAL CONFIG & STATE =====================
-Chart.register(ChartDataLabels);
-
-let rawData = [];
-let parsedData = [];
-let globalCompToSubs = {};
-let globalGstinToSubs = {};
-
-const CATEGORIES = ['CA', 'Accountant', 'GSTP', 'Regular'];
-const CAT_META = {
-    CA: { code: 'CA', cls: 'ca', color: '#4a6cf7', title: 'CA Overview', desc: 'Chartered Accountant workspace licensing and performance activity.' },
-    Accountant: { code: 'AC', cls: 'ac', color: '#a855f7', title: 'Accountant Overview', desc: 'Corporate financial accountants and bookkeeping setups.' },
-    GSTP: { code: 'GP', cls: 'gp', color: '#22c55e', title: 'GSTP Overview', desc: 'Tax practitioner portal system mappings and telemetry.' },
-    Regular: { code: 'RG', cls: 'rg', color: '#ef4444', title: 'Regular Overview', desc: 'Standard retail packages and base activations.' }
-};
-
-let chartInstances = {};
-
-// ===================== AUTO-LOAD FROM GITHUB (.gz) =====================
-document.addEventListener("DOMContentLoaded", function() { autoLoadData(); });
-
-async function autoLoadData() {
-    const fileInfo = document.getElementById('fileInfo');
-    const loadingTitle = document.getElementById('loadingTitle');
-    const spinner = document.getElementById('spinner');
-
-    try {
-        const gzResponse = await fetch('data.csv.gz?v=' + Date.now());
-        if (gzResponse.ok) {
-            loadingTitle.innerText = 'Decompressing Data...';
-            const ds = new DecompressionStream('gzip');
-            const decompressedStream = gzResponse.body.pipeThrough(ds);
-            const text = await new Response(decompressedStream).text();
-
-            loadingTitle.innerText = 'Processing Records...';
-            rawData = parseCSV(text);
-            parsedData = processData(rawData);
-            
-            fileInfo.textContent = '✅ Auto-synced (' + rawData.length.toLocaleString() + ' rows)';
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
-            return;
+        // Helper Utility Functions
+        function formatNum(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return Number(num).toLocaleString('en-IN');
         }
-    } catch (gzErr) { console.warn("Auto-load compressed failed:", gzErr); }
 
-    try {
-        const csvResponse = await fetch('data.csv?v=' + Date.now());
-        if (csvResponse.ok) {
-            const text = await csvResponse.text();
-            rawData = parseCSV(text);
-            parsedData = processData(rawData);
-            fileInfo.textContent = '✅ Auto-synced (' + rawData.length.toLocaleString() + ' rows)';
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
-            return;
+        function formatK(num) {
+            if (!num || isNaN(num)) return '0';
+            if (num >= 10000000) return (num / 10000000).toFixed(1) + 'Cr';
+            if (num >= 100000) return (num / 100000).toFixed(1) + 'L';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toString();
         }
-    } catch (csvErr) { console.warn("Fallback data.csv failed:", csvErr); }
 
-    spinner.style.display = 'none';
-    loadingTitle.innerText = 'Data File Not Found';
-    loadingTitle.style.color = '#eab308';
-    document.getElementById('loadingDesc').innerHTML = 'Please check GitHub or use the <b>Manual Upload</b> button.';
-}
+        function parseDate(dateStr) {
+            if (!dateStr || dateStr === '#N/A' || dateStr === 'null') return null;
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        }
 
-function handleFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+        function getSubscriptionStatus(row) {
+            const expStr = row.Last_Expiry || row.blsExpiry;
+            if (!expStr || expStr === '#N/A' || expStr === 'null') return 'Expired';
+            const expDate = parseDate(expStr);
+            if (!expDate) return 'Expired';
+            const now = new Date();
+            return expDate >= now ? 'Active' : 'Expired';
+        }
 
-    document.getElementById('welcomeScreen').style.display = 'flex';
-    document.getElementById('loadingTitle').innerText = 'Parsing File...';
+        // Clean & Extract Model Base Names
+        function getCleanModelName(val) {
+            if (!val || val === '#N/A' || val.trim() === '' || val === 'null' || val === 'undefined') {
+                return 'N/A';
+            }
+            let s = val.toString().trim().toLowerCase();
+            
+            // Strip known architecture / user type suffixes
+            s = s.replace(/_(single|dual|multi)_user/g, '')
+                 .replace(/_client_server/g, '')
+                 .replace(/_sql_?user/g, '')
+                 .replace(/_user/g, '');
+                 
+            s = s.replace(/[-_]+/g, ' ').trim();
+            if (!s || s === '#n/a') return 'N/A';
+            
+            // Title case product edition names
+            return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            let text = '';
+        // Normalize User Column Header Values
+        function normalizeUserCol(u) {
+            if (!u || u === '#N/A' || u === 'NULL' || u === 'UNKNOWN') return 'UNKNOWN';
+            const str = u.toString().toUpperCase().replace(/[-_ ]/g, '');
+            if (str.includes('DUAL')) return 'DUALUSER';
+            if (str.includes('MULTI')) return 'MULTIUSER';
+            if (str.includes('SQL') || str.includes('CLIENT') || str.includes('SERVER')) return 'SQLUSER';
+            if (str.includes('SINGLE')) return 'SINGLEUSER';
+            return 'UNKNOWN';
+        }
+
+        // Initialize Application & Auto-load CSV/GZ Data
+        window.addEventListener('DOMContentLoaded', () => {
+            autoLoadData();
+        });
+
+        async function autoLoadData() {
+            const loadingBadge = document.getElementById('loadingBadge');
+            try {
+                loadingBadge.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Fetching data.csv.gz...`;
+                const response = await fetch('data.csv.gz');
+                if (!response.ok) throw new Error('data.csv.gz missing');
+
+                let csvText = '';
+                if (window.DecompressionStream) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = response.body.pipeThrough(ds);
+                    const res = new Response(decompressedStream);
+                    csvText = await res.text();
+                } else if (window.pako) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    csvText = pako.ungzip(new Uint8Array(arrayBuffer), { to: 'string' });
+                } else {
+                    throw new Error('No decompression handler available');
+                }
+
+                parseCSVText(csvText);
+            } catch (err) {
+                console.warn('Auto-load gz failed, attempting uncompressed data.csv fallback...', err);
+                try {
+                    const resp = await fetch('data.csv');
+                    if (!resp.ok) throw new Error('data.csv fallback failed');
+                    const csvText = await resp.text();
+                    parseCSVText(csvText);
+                } catch (e2) {
+                    console.error('All auto-load attempts failed:', e2);
+                    loadingBadge.className = "flex items-center space-x-2 px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold";
+                    loadingBadge.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Please Upload CSV Manually`;
+                }
+            }
+        }
+
+        function handleManualFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const loadingBadge = document.getElementById('loadingBadge');
+            loadingBadge.className = "flex items-center space-x-2 px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-semibold";
+            loadingBadge.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processing uploaded file...`;
+
             if (file.name.endsWith('.gz')) {
-                const blob = new Blob([e.target.result]);
-                const ds = new DecompressionStream('gzip');
-                text = await new Response(blob.stream().pipeThrough(ds)).text();
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        let csvText = '';
+                        if (window.DecompressionStream) {
+                            const stream = new Blob([arrayBuffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+                            csvText = await new Response(stream).text();
+                        } else {
+                            csvText = pako.ungzip(new Uint8Array(arrayBuffer), { to: 'string' });
+                        }
+                        parseCSVText(csvText);
+                    } catch (err) {
+                        alert('Error decompressing GZ file: ' + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             } else {
-                text = e.target.result;
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processRawParsedRecords(results.data);
+                    }
+                });
             }
-            rawData = parseCSV(text);
-            parsedData = processData(rawData);
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
-        } catch (err) { alert('Parsing Error: ' + err.message); }
-    };
-    if (file.name.endsWith('.gz')) reader.readAsArrayBuffer(file);
-    else reader.readAsText(file);
-}
+        }
 
-// ===================== CSV PARSING & PROCESSING =====================
-function parseCSV(text) {
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) return [];
-    const headers = parseCSVLine(lines[0]);
-    const data = [];
-    for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length < headers.length - 2) continue;
-        const row = {};
-        headers.forEach((h, idx) => row[h.trim()] = (values[idx] || '').trim());
-        data.push(row);
-    }
-    return data;
-}
-
-function parseCSVLine(line) {
-    const result = []; let current = ''; let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') {
-            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } 
-            else inQuotes = !inQuotes;
-        } else if (line[i] === ',' && !inQuotes) {
-            result.push(current); current = '';
-        } else current += line[i];
-    }
-    result.push(current);
-    return result;
-}
-
-function parseDate(str) {
-    if (!str || str === '########' || str.toUpperCase() === 'NULL') return null;
-    let d = new Date(str);
-    return isNaN(d.getTime()) ? null : d;
-}
-
-function processData(raw) {
-    globalCompToSubs = {};
-    globalGstinToSubs = {};
-
-    const processed = raw.map(row => {
-        const getField = names => {
-            for (let n of names) {
-                if (row[n] !== undefined) return row[n];
-                for (let k of Object.keys(row)) {
-                    if (k.toLowerCase().replace(/[\s_\-]/g, '') === n.toLowerCase().replace(/[\s_\-]/g, '')) return row[k];
+        function parseCSVText(csvText) {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processRawParsedRecords(results.data);
                 }
-            }
-            return '';
-        };
-
-        const r = {
-            subscriptionId: getField(['subscriptionId', 'SubscriptionId']),
-            compguid: getField(['compguid', 'COMPGUID']),
-            gstin: getField(['gstin', 'GSTIN']),
-            lastUpdatedDateRaw: getField(['LastUpdatedDate', 'lastupdateddate']),
-            installDateRaw: getField(['Installdate', 'InstallDate']),
-            licenseCategory: normalizeCat(getField(['licenseCategory', 'LicenseCategory'])),
-            lastExpiryRaw: getField(['Last_Expiry', 'LastExpiry']),
-            blsExpiryRaw: getField(['blsExpiry', 'BlsExpiry']),
-            licenseType: getField(['License_type', 'LicenseType']),
-            model: getField(['Model', 'model']),
-            user: getField(['User', 'user']),
-            customerCluster: getField(['Customer Cluster', 'CustomerCluster']),
-            partnerCluster: getField(['Partner Cluster', 'PartnerCluster']),
-            ownerPartner: getField(['Owner Partner', 'OwnerPartner']),
-            rdpCount: parseInt(getField(['RDP Count', 'RDPCount'])) || 0
-        };
-        
-        r.lastUpdatedDate = parseDate(r.lastUpdatedDateRaw);
-        r.installDate = parseDate(r.installDateRaw);
-        r.lastExpiry = parseDate(r.lastExpiryRaw);
-        r.blsExpiry = parseDate(r.blsExpiryRaw);
-
-        // Populate Global Maps for super-fast cross-link checks
-        if(r.compguid) {
-            if(!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
-            globalCompToSubs[r.compguid].add(r.subscriptionId);
-        }
-        if(r.gstin) {
-            if(!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
-            globalGstinToSubs[r.gstin].add(r.subscriptionId);
-        }
-
-        return r;
-    });
-    return processed;
-}
-
-function normalizeCat(cat) {
-    if (!cat) return 'Regular';
-    const c = cat.trim().toLowerCase();
-    if (c === 'ca') return 'CA';
-    if (c === 'accountant') return 'Accountant';
-    if (c === 'gstp') return 'GSTP';
-    if (c === 'regular') return 'Regular';
-    return cat.trim();
-}
-
-function formatNum(n) { return n ? n.toLocaleString('en-IN') : '0'; }
-function formatLabelNum(value) {
-    if (value >= 100000) return (value / 100000).toFixed(1).replace(/\.0$/, '') + 'L';
-    if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    return value;
-}
-
-function isExpired(row) {
-    const today = new Date();
-    if (row.blsExpiry && row.blsExpiry < today) return true;
-    if (!row.blsExpiry && row.lastExpiry && row.lastExpiry < today) return true;
-    return false;
-}
-function isActive(row) { return !isExpired(row); }
-
-function getSubLevelCounts(dataSubset) {
-    const subMap = {};
-    dataSubset.forEach(r => {
-        if (!subMap[r.subscriptionId]) subMap[r.subscriptionId] = { active: false, expired: false };
-        if (isActive(r)) subMap[r.subscriptionId].active = true; else subMap[r.subscriptionId].expired = true;
-    });
-    let active = 0, expired = 0;
-    Object.values(subMap).forEach(s => { if (s.active) active++; else expired++; });
-    return { total: Object.keys(subMap).length, active, expired };
-}
-
-// ===================== MODAL / RAW DATA =====================
-function showRawData(title, predicate) {
-    const filtered = parsedData.filter(predicate);
-    document.getElementById('modalTitle').innerText = `Raw Data: ${title} (${filtered.length.toLocaleString()} records)`;
-    const renderData = filtered.slice(0, 500);
-    
-    let html = '';
-    if (renderData.length === 0) {
-        html = '<tr><td colspan="15" style="text-align:center">No data matching this filter.</td></tr>';
-    } else {
-        renderData.forEach(r => {
-            html += `<tr>
-                <td>${r.subscriptionId}</td><td>${r.compguid}</td><td>${r.gstin}</td><td>${r.licenseCategory}</td>
-                <td>${r.licenseType}</td><td>${r.model}</td><td>${r.user}</td><td>${r.customerCluster}</td>
-                <td>${r.partnerCluster}</td><td>${r.ownerPartner}</td><td>${r.rdpCount}</td>
-                <td>${r.installDateRaw}</td><td>${r.lastUpdatedDateRaw}</td><td>${r.lastExpiryRaw}</td><td>${r.blsExpiryRaw}</td>
-            </tr>`;
-        });
-    }
-    document.getElementById('modalTableBody').innerHTML = html;
-    document.getElementById('modalWarning').style.display = filtered.length > 500 ? 'block' : 'none';
-    document.getElementById('rawModal').style.display = 'flex';
-}
-function closeRawData() { document.getElementById('rawModal').style.display = 'none'; }
-
-// ===================== LANDING PAGE =====================
-function showLandingPage() {
-    document.getElementById('landingPage').style.display = 'block';
-    document.getElementById('detailPage').className = 'detail-page';
-    document.getElementById('detailPage').innerHTML = '';
-    renderSummaryBar();
-    renderCategoryCards();
-    renderCharts();
-}
-
-function renderSummaryBar() {
-    const counts = getSubLevelCounts(parsedData);
-    const uComp = new Set(parsedData.map(r => r.compguid).filter(g => g));
-    const uGst = new Set(parsedData.map(r => r.gstin).filter(g => g));
-    const health = counts.total > 0 ? Math.round((counts.active / counts.total) * 100) : 0;
-    
-    document.getElementById('summaryBar').innerHTML = `
-        <div class="summary-stat blue clickable" onclick="showRawData('All Subscriptions', r=>true)">
-            <div class="value number-format">${formatNum(counts.total)}</div><div class="label">Total Subs</div></div>
-        <div class="summary-stat green clickable" onclick="showRawData('All Active', r=>isActive(r))">
-            <div class="value number-format">${formatNum(counts.active)}</div><div class="label">Active Licenses</div></div>
-        <div class="summary-stat red clickable" onclick="showRawData('All Expired', r=>isExpired(r))">
-            <div class="value number-format">${formatNum(counts.expired)}</div><div class="label">Expired Licenses</div></div>
-        <div class="summary-stat purple clickable" onclick="showRawData('Has CompGUID', r=>r.compguid)">
-            <div class="value number-format">${formatNum(uComp.size)}</div><div class="label">Unique CompGUID</div></div>
-        <div class="summary-stat cyan clickable" onclick="showRawData('Has GSTIN', r=>r.gstin)">
-            <div class="value number-format">${formatNum(uGst.size)}</div><div class="label">Unique GSTIN</div></div>
-        <div class="summary-stat yellow">
-            <div class="value"><span class="health-indicator"><span class="health-dot ${health>=70?'good':health>=40?'warning':'bad'}"></span>${health}%</span></div>
-            <div class="label">System Health</div></div>
-    `;
-}
-
-function getCrossLinkStats(category) {
-    const catData = parsedData.filter(r => r.licenseCategory === category);
-    let guids = new Set(), gstins = new Set();
-    catData.forEach(r => { if(r.compguid) guids.add(r.compguid); if(r.gstin) gstins.add(r.gstin); });
-    
-    let crossGuidsCount = 0, crossGuidsSubs = new Set();
-    guids.forEach(g => {
-        if(globalCompToSubs[g] && globalCompToSubs[g].size > 1) {
-            crossGuidsCount++; globalCompToSubs[g].forEach(s => crossGuidsSubs.add(s));
-        }
-    });
-
-    let crossGstinCount = 0, crossGstinSubs = new Set();
-    gstins.forEach(g => {
-        if(globalGstinToSubs[g] && globalGstinToSubs[g].size > 1) {
-            crossGstinCount++; globalGstinToSubs[g].forEach(s => crossGstinSubs.add(s));
-        }
-    });
-    
-    return { comp: {count: crossGuidsCount, subs: crossGuidsSubs.size}, gstin: {count: crossGstinCount, subs: crossGstinSubs.size} };
-}
-
-function renderCategoryCards() {
-    const container = document.getElementById('categoryGrid');
-    container.innerHTML = '';
-    CATEGORIES.forEach(cat => {
-        const meta = CAT_META[cat];
-        const catData = parsedData.filter(r => r.licenseCategory === cat);
-        const counts = getSubLevelCounts(catData);
-        const cross = getCrossLinkStats(cat);
-        const pct = counts.total > 0 ? Math.round((counts.active / counts.total) * 100) : 0;
-
-        const card = document.createElement('div');
-        card.className = `category-card ${meta.cls}`;
-        card.onclick = () => showDetailPage(cat);
-        card.innerHTML = `
-            <div class="card-header">
-                <div class="card-badge">${meta.code}</div>
-            </div>
-            <div class="card-title">${meta.title}</div>
-            <div class="card-description">${meta.desc}</div>
-            
-            <div class="xl-box">
-                <div class="xl-row"><span>🔗 COMPGUID Cross-Linked:</span> <b>${formatNum(cross.comp.count)}</b> <span style="font-size:10px">(Connects ${formatNum(cross.comp.subs)} Subs)</span></div>
-                <div class="xl-row"><span>🔗 GSTIN Cross-Linked:</span> <b>${formatNum(cross.gstin.count)}</b> <span style="font-size:10px">(Connects ${formatNum(cross.gstin.subs)} Subs)</span></div>
-            </div>
-
-            <div class="card-progress"><div class="card-progress-fill" style="width: ${pct}%"></div></div>
-            <div class="card-stats">
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.total)}</div><div class="stat-label">Total</div></div>
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.active)}</div><div class="stat-label">Active</div></div>
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.expired)}</div><div class="stat-label">Expired</div></div>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-}
-
-function renderCharts() {
-    Object.keys(chartInstances).forEach(k => chartInstances[k].destroy()); chartInstances = {};
-    renderClusterChart('customerClusterChart', 'customerCluster');
-    renderClusterChart('partnerClusterChart', 'partnerCluster');
-    renderPartnerRdpChart('partnerRdpChart');
-}
-
-function renderClusterChart(canvasId, field) {
-    const clusterMap = {};
-    parsedData.forEach(r => {
-        const c = r[field] || 'Unknown';
-        if (!clusterMap[c]) clusterMap[c] = { subIds: new Set(), rdpMap: {} };
-        clusterMap[c].subIds.add(r.subscriptionId);
-        clusterMap[c].rdpMap[r.subscriptionId] = Math.max(clusterMap[c].rdpMap[r.subscriptionId] || 0, r.rdpCount);
-    });
-
-    const dataArr = Object.keys(clusterMap).map(c => {
-        const total = clusterMap[c].subIds.size;
-        let rdpSubs = 0;
-        Object.values(clusterMap[c].rdpMap).forEach(v => { if(v > 0) rdpSubs++; });
-        return { name: c, subs: total, rdpPct: total > 0 ? parseFloat((rdpSubs/total*100).toFixed(1)) : 0 };
-    }).sort((a, b) => b.subs - a.subs).slice(0, 10);
-
-    chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: dataArr.map(d => d.name),
-            datasets: [
-                { label: 'Unique Subs', data: dataArr.map(d=>d.subs), backgroundColor: '#4a6cf7', yAxisID: 'y', order:2 },
-                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth:3, yAxisID: 'y1', order:1 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            onClick: (e, els, chart) => {
-                if(els.length) showRawData(`${field}: ${chart.data.labels[els[0].index]}`, r => (r[field]||'Unknown') === chart.data.labels[els[0].index]);
-            },
-            plugins: {
-                datalabels: {
-                    display: c => c.dataset.data[c.dataIndex] > 0,
-                    color: c => c.datasetIndex === 0 ? '#e8e8e8' : '#f97316',
-                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
-                    align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: (v, c) => c.datasetIndex === 1 ? v+'%' : formatLabelNum(v),
-                    font: {size:10, weight:'bold'}
-                }
-            },
-            scales: { y: { position:'left' }, y1: { position:'right', grid:{display:false} } }
-        }
-    });
-}
-
-function renderPartnerRdpChart(canvasId) {
-    const partnerMap = {};
-    parsedData.forEach(r => {
-        const p = r.ownerPartner;
-        if (!p || p.trim()==='' || p.toUpperCase()==='NULL' || p==='#N/A') return;
-        if (!partnerMap[p]) partnerMap[p] = { subIds: new Set(), rdpMap: {} };
-        partnerMap[p].subIds.add(r.subscriptionId);
-        partnerMap[p].rdpMap[r.subscriptionId] = Math.max(partnerMap[p].rdpMap[r.subscriptionId]||0, r.rdpCount);
-    });
-
-    const dataArr = Object.keys(partnerMap).map(p => {
-        let totalRdp = 0; Object.values(partnerMap[p].rdpMap).forEach(v => totalRdp += v);
-        return { name: p, subs: partnerMap[p].subIds.size, rdp: totalRdp };
-    }).filter(d => d.rdp > 0).sort((a,b) => b.rdp - a.rdp).slice(0, 15);
-
-    chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: dataArr.map(d=>d.name),
-            datasets: [
-                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: 'rgba(34, 197, 94, 0.8)', yAxisID: 'y', order:2 },
-                { label: 'Total RDP Users', data: dataArr.map(d=>d.rdp), type: 'line', borderColor: '#f97316', borderWidth:3, yAxisID: 'y1', order:1 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            onClick: (e, els, chart) => {
-                if(els.length) showRawData(`Partner: ${chart.data.labels[els[0].index]}`, r => r.ownerPartner === chart.data.labels[els[0].index]);
-            },
-            plugins: {
-                datalabels: {
-                    color: c => c.datasetIndex === 0 ? '#e8e8e8' : '#f97316',
-                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center', align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: v => formatLabelNum(v), font: {size:10, weight:'bold'}
-                }
-            },
-            scales: { y: { position:'left' }, y1: { position:'right', grid:{display:false} } }
-        }
-    });
-}
-
-// ===================== DETAIL PAGE =====================
-function showDetailPage(category) {
-    document.getElementById('landingPage').style.display = 'none';
-    const detailPage = document.getElementById('detailPage');
-    detailPage.className = 'detail-page active';
-    detailPage.innerHTML = '<div style="text-align:center; padding:100px;"><div class="spinner"></div></div>';
-
-    setTimeout(() => {
-        const catData = parsedData.filter(r => r.licenseCategory === category);
-        const counts = getSubLevelCounts(catData);
-        const uniqueCompguids = new Set(catData.map(r => r.compguid).filter(g => g));
-        const uniqueGSTINs = new Set(catData.map(r => r.gstin).filter(g => g));
-        
-        let rdpLicenseCount = 0, totalRDPUsers = 0;
-        const subRdp = {};
-        catData.forEach(r => subRdp[r.subscriptionId] = Math.max(subRdp[r.subscriptionId]||0, r.rdpCount));
-        Object.values(subRdp).forEach(v => { if(v>0) { rdpLicenseCount++; totalRDPUsers+=v; }});
-        
-        const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
-
-        let html = `
-            <button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>
-            <div class="detail-title"><div class="badge-large" style="background:${CAT_META[category].color}22; color:${CAT_META[category].color}">${CAT_META[category].code}</div>
-            <h2>${CAT_META[category].title}</h2></div>
-            
-            <div class="detail-summary">
-                <div class="detail-stat clickable" onclick="showRawData('Subs in ${category}', r=>r.licenseCategory==='${category}')"><div class="d-value">${formatNum(counts.total)}</div><div class="d-label">Unique Subs</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Active in ${category}', r=>r.licenseCategory==='${category}'&&isActive(r))"><div class="d-value">${formatNum(counts.active)}</div><div class="d-label">Active</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Expired in ${category}', r=>r.licenseCategory==='${category}'&&isExpired(r))"><div class="d-value">${formatNum(counts.expired)}</div><div class="d-label">Expired</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has COMPGUID in ${category}', r=>r.licenseCategory==='${category}'&&r.compguid)"><div class="d-value">${formatNum(uniqueCompguids.size)}</div><div class="d-label">Unique COMPGUID</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has GSTIN in ${category}', r=>r.licenseCategory==='${category}'&&r.gstin)"><div class="d-value">${formatNum(uniqueGSTINs.size)}</div><div class="d-label">Unique GSTIN</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has RDP in ${category}', r=>r.licenseCategory==='${category}'&&r.rdpCount>0)"><div class="d-value">${formatNum(rdpLicenseCount)}</div><div class="d-label">RDP Licenses</div></div>
-            </div>
-        `;
-        html += buildModelMatrix(catData, category);
-        html += buildRDPTable(catData, category);
-        html += buildOverlapSection(category);
-        
-        detailPage.innerHTML = html;
-    }, 50);
-}
-
-function buildModelMatrix(catData, category) {
-    const mSet = new Set(), uSet = new Set();
-    const matrix = {};
-    catData.forEach(r => {
-        const m = r.model || 'Unknown', u = r.user || 'Unknown';
-        mSet.add(m); uSet.add(u);
-        if(!matrix[m]) matrix[m] = {};
-        if(!matrix[m][u]) matrix[m][u] = new Set();
-        matrix[m][u].add(r.subscriptionId);
-    });
-
-    const models = Array.from(mSet).sort();
-    const users = Array.from(uSet).sort();
-
-    let html = '<div class="table-section"><h3>📊 Model Distribution (Rows: Model, Columns: User)</h3><div class="scroll-table"><table><thead><tr><th>Model</th>';
-    users.forEach(u => html += `<th>${u}</th>`);
-    html += '<th>Grand Total</th></tr></thead><tbody>';
-
-    models.forEach(m => {
-        html += `<tr><td><b>${m}</b></td>`;
-        let rowTot = 0;
-        users.forEach(u => {
-            const count = matrix[m][u] ? matrix[m][u].size : 0;
-            rowTot += count;
-            html += `<td class="clickable-cell number-format" onclick="showRawData('Model: ${m}, User: ${u}', r=>r.model==='${m}'&&r.user==='${u}'&&r.licenseCategory==='${category}')">${formatNum(count)}</td>`;
-        });
-        html += `<td class="number-format" style="font-weight:bold">${formatNum(rowTot)}</td></tr>`;
-    });
-    return html + '</tbody></table></div></div>';
-}
-
-function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
-    const today = new Date();
-    const currentDataByCompguid = {};
-    catData.forEach(r => {
-        if (r.compguid) {
-            if (!currentDataByCompguid[r.compguid]) currentDataByCompguid[r.compguid] = [];
-            currentDataByCompguid[r.compguid].push(r);
-        }
-    });
-
-    let rdpSwitch = 0, newAct = 0;
-    const otherSubMap = {};
-    parsedData.forEach(r => {
-        if(r.licenseCategory !== currentCategory) {
-            if(!otherSubMap[r.subscriptionId]) otherSubMap[r.subscriptionId] = [];
-            otherSubMap[r.subscriptionId].push(r);
-        }
-    });
-
-    const countedSw = new Set(), countedAct = new Set();
-    Object.keys(otherSubMap).forEach(subId => {
-        const rows = otherSubMap[subId];
-        const exps = rows.map(r=>r.lastExpiry).filter(d=>d);
-        if(!exps.length) return;
-        const maxExp = new Date(Math.max(...exps.map(d=>d.getTime())));
-        if(maxExp >= today) return;
-
-        rows.map(r=>r.compguid).filter(g=>g).forEach(g => {
-            const matches = currentDataByCompguid[g];
-            if(!matches) return;
-            matches.forEach(cr => {
-                const limit = new Date(maxExp.getTime() - (90*24*60*60*1000));
-                const k1 = subId+'|'+g+'|'+cr.subscriptionId;
-                if(!countedSw.has(k1) && cr.lastUpdatedDate && cr.lastUpdatedDate >= limit) { rdpSwitch++; countedSw.add(k1); }
-                if(!countedAct.has(k1) && cr.lastUpdatedDate >= limit && cr.installDate >= limit) { newAct++; countedAct.add(k1); }
             });
-        });
-    });
-    return { rdpSwitchCount: rdpSwitch, newActivationCount: newAct };
-}
+        }
 
-function buildRDPTable(catData, category) {
-    const subRDPMap = {};
-    catData.forEach(r => {
-        if (!subRDPMap[r.subscriptionId]) subRDPMap[r.subscriptionId] = { rdpCount: r.rdpCount, compguids: new Set(), gstins: new Set() };
-        subRDPMap[r.subscriptionId].rdpCount = Math.max(subRDPMap[r.subscriptionId].rdpCount, r.rdpCount);
-        if (r.compguid) subRDPMap[r.subscriptionId].compguids.add(r.compguid);
-        if (r.gstin) subRDPMap[r.subscriptionId].gstins.add(r.gstin);
-    });
+        function processRawParsedRecords(records) {
+            allData = records;
+            categoryIndices = { CA: [], Accountant: [], GSTP: [], Regular: [] };
+            globalCompToSubs = new Map();
+            globalGstinToSubs = new Map();
+            globalCompToCats = new Map();
+            globalGstinToCats = new Map();
 
-    const buckets = {};
-    Object.values(subRDPMap).forEach(s => {
-        const k = s.rdpCount > 0 ? s.rdpCount.toString() : 'No RDP';
-        if (!buckets[k]) buckets[k] = { count: 0, comp: 0, gst: 0 };
-        buckets[k].count++; buckets[k].comp += s.compguids.size; buckets[k].gst += s.gstins.size;
-    });
+            for (let i = 0; i < records.length; i++) {
+                const r = records[i];
+                let cat = (r.licenseCategory || '').trim();
+                if (cat === 'AC') cat = 'Accountant';
+                if (cat === 'GP') cat = 'GSTP';
+                if (cat === 'RG') cat = 'Regular';
+                
+                if (categoryIndices[cat]) {
+                    categoryIndices[cat].push(r);
+                } else if (cat === 'CA') {
+                    categoryIndices.CA.push(r);
+                } else {
+                    categoryIndices.Regular.push(r);
+                }
 
-    const nums = Object.keys(buckets).map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b);
-    let html = '', gc = 0, gcComp = 0, gcGst = 0;
-    
-    const rowFn = (k, b) => {
-        gc += b.count; gcComp += b.comp; gcGst += b.gst;
-        let lbl = k === 'No RDP' ? k : `RDP Count: ${k}`;
-        html += `<tr><td>${k}</td><td class="clickable-cell" onclick="showRawData('${lbl} in ${category}', r=>r.licenseCategory==='${category}'&&(r.rdpCount==${k==='No RDP'?0:k}))">${formatNum(b.count)}</td><td>${b.count>0?(b.comp/b.count).toFixed(2):'0.00'}</td><td>${b.count>0?(b.gst/b.count).toFixed(2):'0.00'}</td></tr>`;
-    };
+                // Index cross-category mappings
+                const comp = r.compguid ? r.compguid.trim() : '';
+                const gstin = r.gstin ? r.gstin.trim() : '';
 
-    nums.forEach(n => rowFn(n.toString(), buckets[n.toString()]));
-    if(buckets['No RDP']) rowFn('No RDP', buckets['No RDP']);
+                if (comp && comp !== '#N/A' && comp !== 'null' && comp !== 'NULL') {
+                    if (!globalCompToSubs.has(comp)) globalCompToSubs.set(comp, new Set());
+                    globalCompToSubs.get(comp).add(r.subscriptionId);
 
-    return `<div class="table-section"><h3>📋 RDP User Distribution</h3><div class="scroll-table"><table>
-        <thead><tr><th>RDP User</th><th>Count of Serial Number</th><th>Avg COMPGUID</th><th>Avg GSTIN</th></tr></thead>
-        <tbody>${html}<tr style="background:var(--bg-card);font-weight:700"><td>Grand Total</td><td>${formatNum(gc)}</td><td>${gc>0?(gcComp/gc).toFixed(2):0}</td><td>${gc>0?(gcGst/gc).toFixed(2):0}</td></tr></tbody>
-    </table></div></div>`;
-}
+                    if (!globalCompToCats.has(comp)) globalCompToCats.set(comp, new Set());
+                    globalCompToCats.get(comp).add(cat);
+                }
 
-function buildOverlapSection(currentCategory) {
-    const otherCats = CATEGORIES.filter(c => c !== currentCategory);
-    let cards = '';
-    otherCats.forEach(oCat => {
-        cards += `<div class="overlap-card clickable" onclick="showRawData('${oCat} Subs', r=>r.licenseCategory==='${oCat}')">
-            <div class="overlap-value">🔗 Open ${oCat} Data</div><div class="overlap-label">Analyze overlaps via Raw Data</div></div>`;
-    });
-    return `<div class="table-section" style="background:transparent; border:none; padding:0;"><h3 style="margin-bottom:16px;">🔗 Other Categories Quick Links</h3><div class="overlap-section">${cards}</div></div>`;
-}
-</script>
+                if (gstin && gstin !== '#N/A' && gstin !== 'null' && gstin !== 'NULL') {
+                    if (!globalGstinToSubs.has(gstin)) globalGstinToSubs.set(gstin, new Set());
+                    globalGstinToSubs.get(gstin).add(r.subscriptionId);
+
+                    if (!globalGstinToCats.has(gstin)) globalGstinToCats.set(gstin, new Set());
+                    globalGstinToCats.get(gstin).add(cat);
+                }
+            }
+
+            const loadingBadge = document.getElementById('loadingBadge');
+            loadingBadge.className = "flex items-center space-x-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold";
+            loadingBadge.innerHTML = `<i class="fas fa-check-circle mr-1"></i> ${formatNum(allData.length)} Records Loaded`;
+
+            renderLandingPage();
+        }
+
+        // NAVIGATION & PAGE ROUTING
+        function showLandingPage() {
+            activeCategory = null;
+            document.getElementById('landingPageView').classList.remove('hidden');
+            document.getElementById('categoryPageView').classList.add('hidden');
+            
+            document.querySelectorAll('#navCategoryButtons button').forEach(btn => {
+                btn.className = "px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition";
+            });
+            document.getElementById('navBtnAll').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 transition";
+
+            renderLandingPage();
+        }
+
+        function showCategoryPage(catKey) {
+            let catName = catKey;
+            if (catKey === 'AC') catName = 'Accountant';
+            if (catKey === 'GP') catName = 'GSTP';
+            if (catKey === 'RG') catName = 'Regular';
+
+            activeCategory = catName;
+            document.getElementById('landingPageView').classList.add('hidden');
+            document.getElementById('categoryPageView').classList.remove('hidden');
+
+            document.querySelectorAll('#navCategoryButtons button').forEach(btn => {
+                btn.className = "px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition";
+            });
+            let navId = 'navBtn' + catKey;
+            if (catName === 'Accountant') navId = 'navBtnAC';
+            if (catName === 'GSTP') navId = 'navBtnGP';
+            if (catName === 'Regular') navId = 'navBtnRG';
+            const activeBtn = document.getElementById(navId);
+            if (activeBtn) activeBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 transition";
+
+            renderCategoryDetailPage(catName);
+        }
+
+        // LANDING PAGE CALCULATIONS & RENDERING
+        function getCrossLinkStats(category) {
+            const catData = categoryIndices[category] || [];
+            let compCount = 0, compSubs = 0;
+            let gstinCount = 0, gstinSubs = 0;
+
+            const visitedComp = new Set();
+            const visitedGstin = new Set();
+
+            for (let i = 0; i < catData.length; i++) {
+                const r = catData[i];
+                if (r.compguid && r.compguid !== '#N/A' && r.compguid !== 'null') {
+                    const cats = globalCompToCats.get(r.compguid);
+                    if (cats && cats.size > 1) {
+                        compSubs++;
+                        if (!visitedComp.has(r.compguid)) {
+                            visitedComp.add(r.compguid);
+                            compCount++;
+                        }
+                    }
+                }
+                if (r.gstin && r.gstin !== '#N/A' && r.gstin !== 'null') {
+                    const cats = globalGstinToCats.get(r.gstin);
+                    if (cats && cats.size > 1) {
+                        gstinSubs++;
+                        if (!visitedGstin.has(r.gstin)) {
+                            visitedGstin.add(r.gstin);
+                            gstinCount++;
+                        }
+                    }
+                }
+            }
+            return { compCount, compSubs, gstinCount, gstinSubs };
+        }
+
+        function renderLandingPage() {
+            // Summary Bar Stats
+            const total = allData.length;
+            let active = 0, expired = 0;
+            const uniqueCompSet = new Set();
+            const uniqueGstinSet = new Set();
+
+            for (let i = 0; i < total; i++) {
+                const r = allData[i];
+                if (getSubscriptionStatus(r) === 'Active') active++;
+                else expired++;
+
+                if (r.compguid && r.compguid !== '#N/A') uniqueCompSet.add(r.compguid);
+                if (r.gstin && r.gstin !== '#N/A') uniqueGstinSet.add(r.gstin);
+            }
+
+            document.getElementById('sumTotalSubs').innerText = formatNum(total);
+            document.getElementById('sumActiveSubs').innerText = formatNum(active);
+            document.getElementById('sumExpiredSubs').innerText = formatNum(expired);
+            document.getElementById('sumUniqueComp').innerText = formatNum(uniqueCompSet.size);
+            document.getElementById('sumUniqueGstin').innerText = formatNum(uniqueGstinSet.size);
+            document.getElementById('sumHealth').innerText = total > 0 ? ((active / total) * 100).toFixed(1) + '%' : '0%';
+
+            // Render 4 Category Cards
+            const categories = [
+                { id: 'CA', code: 'CA', title: 'CA Overview', desc: 'Chartered Accountant workspace licensing and performance activity.' },
+                { id: 'Accountant', code: 'AC', title: 'Accountant Overview', desc: 'Corporate financial accountants and bookkeeping setups.' },
+                { id: 'GSTP', code: 'GP', title: 'GSTP Overview', desc: 'Tax practitioner portal system mappings and telemetry.' },
+                { id: 'Regular', code: 'RG', title: 'Regular Overview', desc: 'Standard retail packages and base activations.' }
+            ];
+
+            const cardsContainer = document.getElementById('categoryCardsContainer');
+            cardsContainer.innerHTML = '';
+
+            categories.forEach(cat => {
+                const catData = categoryIndices[cat.id] || [];
+                const catTotal = catData.length;
+                let catActive = 0, catExpired = 0;
+                for (let i = 0; i < catTotal; i++) {
+                    if (getSubscriptionStatus(catData[i]) === 'Active') catActive++;
+                    else catExpired++;
+                }
+
+                const cross = getCrossLinkStats(cat.id);
+
+                const cardHtml = `
+                    <div class="bg-cardBg border border-cardBorder hover:border-indigo-500/50 rounded-xl p-5 shadow-xl transition flex flex-col justify-between group">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-10 h-10 rounded-lg bg-indigo-600/20 text-indigo-400 font-bold flex items-center justify-center border border-indigo-500/30 text-sm group-hover:scale-105 transition">
+                                    ${cat.code}
+                                </span>
+                                <button onclick="showCategoryPage('${cat.id}')" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1">
+                                    <span>Explore</span> <i class="fas fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                            <h3 class="font-bold text-white text-base">${cat.title}</h3>
+                            <p class="text-xs text-gray-400 mt-1 leading-relaxed">${cat.desc}</p>
+
+                            <!-- Clean COMPGUID & GSTIN Line Formatting -->
+                            <div class="bg-slate-900/80 border border-slate-700/50 rounded-lg p-2.5 my-3 text-xs space-y-1.5 font-medium">
+                                <div class="flex items-center text-slate-300">
+                                    <i class="fas fa-link text-indigo-400 mr-2 text-xs"></i>
+                                    <span>COMPGUID (<strong>${formatNum(cross.compCount)}</strong>) = Subscription (<button onclick="openCrossLinkedModal('${cat.id}', 'compguid')" class="text-indigo-400 hover:underline font-bold">${formatNum(cross.compSubs)}</button>)</span>
+                                </div>
+                                <div class="flex items-center text-slate-300">
+                                    <i class="fas fa-link text-indigo-400 mr-2 text-xs"></i>
+                                    <span>GSTIN (<strong>${formatNum(cross.gstinCount)}</strong>) = Subscription (<button onclick="openCrossLinkedModal('${cat.id}', 'gstin')" class="text-indigo-400 hover:underline font-bold">${formatNum(cross.gstinSubs)}</button>)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-800 grid grid-cols-3 gap-2 text-center">
+                            <div class="cursor-pointer hover:bg-slate-800/40 p-1 rounded" onclick="openModal('${cat.id} - Total Subscriptions', categoryIndices['${cat.id}'])">
+                                <p class="text-[11px] text-gray-400 font-medium">Total</p>
+                                <p class="text-base font-extrabold text-amber-400 mt-0.5">${formatNum(catTotal)}</p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-slate-800/40 p-1 rounded" onclick="openModal('${cat.id} - Active Subscriptions', categoryIndices['${cat.id}'].filter(r=>getSubscriptionStatus(r)==='Active'))">
+                                <p class="text-[11px] text-gray-400 font-medium">Active</p>
+                                <p class="text-base font-extrabold text-emerald-400 mt-0.5">${formatNum(catActive)}</p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-slate-800/40 p-1 rounded" onclick="openModal('${cat.id} - Expired Subscriptions', categoryIndices['${cat.id}'].filter(r=>getSubscriptionStatus(r)==='Expired'))">
+                                <p class="text-[11px] text-gray-400 font-medium">Expired</p>
+                                <p class="text-base font-extrabold text-red-400 mt-0.5">${formatNum(catExpired)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                cardsContainer.innerHTML += cardHtml;
+            });
+
+            // Render Landing Page Charts
+            renderLandingCharts();
+        }
+
+        function openCrossLinkedModal(catId, type) {
+            const catData = categoryIndices[catId] || [];
+            let filtered = [];
+            if (type === 'compguid') {
+                filtered = catData.filter(r => {
+                    if (!r.compguid || r.compguid === '#N/A' || r.compguid === 'null') return false;
+                    const cats = globalCompToCats.get(r.compguid);
+                    return cats && cats.size > 1;
+                });
+                openModal(`${catId} - Cross-Linked COMPGUID Subscriptions`, filtered);
+            } else if (type === 'gstin') {
+                filtered = catData.filter(r => {
+                    if (!r.gstin || r.gstin === '#N/A' || r.gstin === 'null') return false;
+                    const cats = globalGstinToCats.get(r.gstin);
+                    return cats && cats.size > 1;
+                });
+                openModal(`${catId} - Cross-Linked GSTIN Subscriptions`, filtered);
+            }
+        }
+
+        // LANDING PAGE COMBO CHARTS
+        function renderLandingCharts() {
+            // Destroy existing instances
+            if (window.custClusterChartInstance) window.custClusterChartInstance.destroy();
+            if (window.partnerClusterChartInstance) window.partnerClusterChartInstance.destroy();
+            if (window.topPartnersChartInstance) window.topPartnersChartInstance.destroy();
+
+            // 1. Customer Cluster Chart (Top 10)
+            const custClusters = {};
+            allData.forEach(r => {
+                const c = r['Customer Cluster'] || 'Unknown';
+                if (!custClusters[c]) custClusters[c] = { total: 0, rdp: 0 };
+                custClusters[c].total++;
+                if (parseInt(r['RDP Count'] || '0') > 0) custClusters[c].rdp++;
+            });
+
+            const topCust = Object.keys(custClusters)
+                .map(k => ({ name: k, ...custClusters[k], adopt: custClusters[k].total > 0 ? (custClusters[k].rdp / custClusters[k].total) * 100 : 0 }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 10);
+
+            const ctxCust = document.getElementById('custClusterChart').getContext('2d');
+            window.custClusterChartInstance = new Chart(ctxCust, {
+                type: 'bar',
+                data: {
+                    labels: topCust.map(d => d.name),
+                    datasets: [
+                        {
+                            label: 'Unique Subscriptions',
+                            data: topCust.map(d => d.total),
+                            backgroundColor: '#6366f1',
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'RDP Adoption %',
+                            data: topCust.map(d => parseFloat(d.adopt.toFixed(1))),
+                            type: 'line',
+                            borderColor: '#10b981',
+                            backgroundColor: '#10b981',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+                        y: { type: 'linear', position: 'left', ticks: { color: '#9ca3af', callback: v => formatK(v) }, grid: { color: '#1f2937' } },
+                        y1: { type: 'linear', position: 'right', ticks: { color: '#10b981', callback: v => v + '%' }, grid: { display: false }, min: 0, max: 100 }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6', font: { size: 11 } } },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 9 },
+                            formatter: (val, ctx) => {
+                                if (ctx.dataset.type === 'line') return val + '%';
+                                return formatK(val);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Partner Cluster Chart (Top 10)
+            const partClusters = {};
+            allData.forEach(r => {
+                const c = r['Partner Cluster'] || 'Unknown';
+                if (!partClusters[c]) partClusters[c] = { total: 0, rdp: 0 };
+                partClusters[c].total++;
+                if (parseInt(r['RDP Count'] || '0') > 0) partClusters[c].rdp++;
+            });
+
+            const topPartCluster = Object.keys(partClusters)
+                .map(k => ({ name: k, ...partClusters[k], adopt: partClusters[k].total > 0 ? (partClusters[k].rdp / partClusters[k].total) * 100 : 0 }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 10);
+
+            const ctxPartClust = document.getElementById('partnerClusterChart').getContext('2d');
+            window.partnerClusterChartInstance = new Chart(ctxPartClust, {
+                type: 'bar',
+                data: {
+                    labels: topPartCluster.map(d => d.name),
+                    datasets: [
+                        {
+                            label: 'Unique Subscriptions',
+                            data: topPartCluster.map(d => d.total),
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'RDP Adoption %',
+                            data: topPartCluster.map(d => parseFloat(d.adopt.toFixed(1))),
+                            type: 'line',
+                            borderColor: '#f59e0b',
+                            backgroundColor: '#f59e0b',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+                        y: { type: 'linear', position: 'left', ticks: { color: '#9ca3af', callback: v => formatK(v) }, grid: { color: '#1f2937' } },
+                        y1: { type: 'linear', position: 'right', ticks: { color: '#f59e0b', callback: v => v + '%' }, grid: { display: false }, min: 0, max: 100 }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6', font: { size: 11 } } },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 9 },
+                            formatter: (val, ctx) => {
+                                if (ctx.dataset.type === 'line') return val + '%';
+                                return formatK(val);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. Top 15 Partners by RDP Users Sold
+            const partners = {};
+            allData.forEach(r => {
+                const p = r['Owner Partner'] || 'Direct / Unknown';
+                const rdpCount = parseInt(r['RDP Count'] || '0');
+                if (!partners[p]) partners[p] = { totalSubs: 0, rdpUsers: 0 };
+                partners[p].totalSubs++;
+                partners[p].rdpUsers += rdpCount;
+            });
+
+            const top15Partners = Object.keys(partners)
+                .map(k => ({ name: k, ...partners[k] }))
+                .sort((a, b) => b.rdpUsers - a.rdpUsers)
+                .slice(0, 15);
+
+            const ctxTopPartners = document.getElementById('topPartnersChart').getContext('2d');
+            window.topPartnersChartInstance = new Chart(ctxTopPartners, {
+                type: 'bar',
+                data: {
+                    labels: top15Partners.map(d => d.name),
+                    datasets: [
+                        {
+                            label: 'Total Subscriptions',
+                            data: top15Partners.map(d => d.totalSubs),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Total RDP Users',
+                            data: top15Partners.map(d => d.rdpUsers),
+                            type: 'line',
+                            borderColor: '#ec4899',
+                            backgroundColor: '#ec4899',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+                        y: { type: 'linear', position: 'left', ticks: { color: '#9ca3af', callback: v => formatK(v) }, grid: { color: '#1f2937' } },
+                        y1: { type: 'linear', position: 'right', ticks: { color: '#ec4899', callback: v => formatK(v) }, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6', font: { size: 11 } } },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 9 },
+                            formatter: (val) => formatK(val)
+                        }
+                    }
+                }
+            });
+        }
+
+        // CATEGORY DETAIL PAGE CALCULATIONS & RENDERING
+        function renderCategoryDetailPage(catName) {
+            const catData = categoryIndices[catName] || [];
+            document.getElementById('catDetailTitle').innerText = `${catName} Category Intelligence`;
+            document.getElementById('catBadge').innerText = catName;
+
+            // Build O(1) compguid lookup for RDP switch logic
+            currentCategoryDataMap = new Map();
+            catData.forEach(r => {
+                if (r.compguid && r.compguid !== '#N/A') {
+                    if (!currentCategoryDataMap.has(r.compguid)) currentCategoryDataMap.set(r.compguid, []);
+                    currentCategoryDataMap.get(r.compguid).push(r);
+                }
+            });
+
+            // Fast KPI Calculations
+            let uniqueSubs = catData.length;
+            let activeCount = 0, expiredCount = 0;
+            const uniqueComp = new Set();
+            const uniqueGstin = new Set();
+            let rdpLicenses = 0;
+            let totalRdpUsers = 0;
+
+            const activeRecords = [];
+            const expiredRecords = [];
+            const rdpLicenseRecords = [];
+
+            for (let i = 0; i < uniqueSubs; i++) {
+                const r = catData[i];
+                const status = getSubscriptionStatus(r);
+                if (status === 'Active') {
+                    activeCount++;
+                    activeRecords.push(r);
+                } else {
+                    expiredCount++;
+                    expiredRecords.push(r);
+                }
+
+                if (r.compguid && r.compguid !== '#N/A') uniqueComp.add(r.compguid);
+                if (r.gstin && r.gstin !== '#N/A') uniqueGstin.add(r.gstin);
+
+                const rdp = parseInt(r['RDP Count'] || '0');
+                if (rdp > 0) {
+                    rdpLicenses++;
+                    totalRdpUsers += rdp;
+                    rdpLicenseRecords.push(r);
+                }
+            }
+
+            // High Performance RDP Switch & New Activation Logic using Pre-indexed Maps
+            const rdpSwitchRecords = [];
+            const newActivationRecords = [];
+
+            catData.forEach(r => {
+                const expDate = parseDate(r.Last_Expiry || r.blsExpiry);
+                if (!expDate) return;
+
+                const comp = r.compguid;
+                if (!comp || comp === '#N/A') return;
+
+                // Check other categories for matching COMPGUID
+                const allMatchingCompSubs = globalCompToSubs.get(comp);
+                if (!allMatchingCompSubs || allMatchingCompSubs.size <= 1) return;
+
+                // Lookup cross category records
+                for (let otherCat in categoryIndices) {
+                    if (otherCat === catName) continue;
+                    const otherSubs = categoryIndices[otherCat];
+                    for (let j = 0; j < otherSubs.length; j++) {
+                        const o = otherSubs[j];
+                        if (o.compguid === comp) {
+                            const oExp = parseDate(o.Last_Expiry || o.blsExpiry);
+                            if (oExp) {
+                                const diffDays = Math.abs((expDate - oExp) / (1000 * 60 * 60 * 24));
+                                if (diffDays <= 90) {
+                                    rdpSwitchRecords.push(r);
+
+                                    // Check New Activation Condition
+                                    const instDate = parseDate(r.Installdate);
+                                    const lastUpDate = parseDate(r.LastUpdatedDate);
+                                    if (instDate && lastUpDate) {
+                                        const instDiff = Math.abs((expDate - instDate) / (1000 * 60 * 60 * 24));
+                                        const upDiff = Math.abs((expDate - lastUpDate) / (1000 * 60 * 60 * 24));
+                                        if (instDiff <= 90 && upDiff <= 90) {
+                                            newActivationRecords.push(r);
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Render KPI Cards Grid
+            const kpiGrid = document.getElementById('categoryKpiGrid');
+            kpiGrid.innerHTML = `
+                <div onclick="openModal('${catName} - Unique Subscriptions', categoryIndices['${catName}'])" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-indigo-500/50 transition">
+                    <p class="text-xs text-gray-400 font-medium">Unique Subscriptions</p>
+                    <p class="text-2xl font-black text-white mt-1">${formatNum(uniqueSubs)}</p>
+                </div>
+                <div onclick="openModal('${catName} - Active Subscriptions', activeRecords)" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-emerald-500/50 transition">
+                    <p class="text-xs text-emerald-400 font-medium">Active Subscriptions</p>
+                    <p class="text-2xl font-black text-emerald-400 mt-1">${formatNum(activeCount)}</p>
+                </div>
+                <div onclick="openModal('${catName} - Expired Subscriptions', expiredRecords)" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-red-500/50 transition">
+                    <p class="text-xs text-red-400 font-medium">Expired Subscriptions</p>
+                    <p class="text-2xl font-black text-red-400 mt-1">${formatNum(expiredCount)}</p>
+                </div>
+                <div class="bg-cardBg border border-cardBorder p-4 rounded-xl">
+                    <p class="text-xs text-gray-400 font-medium">Unique COMPGUID</p>
+                    <p class="text-2xl font-black text-indigo-400 mt-1">${formatNum(uniqueComp.size)}</p>
+                </div>
+                <div class="bg-cardBg border border-cardBorder p-4 rounded-xl">
+                    <p class="text-xs text-gray-400 font-medium">Unique GSTIN</p>
+                    <p class="text-2xl font-black text-purple-400 mt-1">${formatNum(uniqueGstin.size)}</p>
+                </div>
+                <div onclick="openModal('${catName} - RDP Licenses', rdpLicenseRecords)" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-indigo-500/50 transition">
+                    <p class="text-xs text-gray-400 font-medium">RDP Licenses</p>
+                    <p class="text-2xl font-black text-indigo-300 mt-1">${formatNum(rdpLicenses)}</p>
+                </div>
+                <div class="bg-cardBg border border-cardBorder p-4 rounded-xl">
+                    <p class="text-xs text-gray-400 font-medium">Total RDP Users</p>
+                    <p class="text-2xl font-black text-amber-400 mt-1">${formatNum(totalRdpUsers)}</p>
+                </div>
+                <div onclick="openModal('${catName} - RDP Switch (within 90 days)', rdpSwitchRecords)" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-indigo-500/50 transition">
+                    <p class="text-xs text-indigo-400 font-medium">RDP Switch (within 90d)</p>
+                    <p class="text-2xl font-black text-indigo-400 mt-1">${formatNum(rdpSwitchRecords.length)}</p>
+                </div>
+                <div onclick="openModal('${catName} - New Activation (within 90days)', newActivationRecords)" class="bg-cardBg border border-cardBorder p-4 rounded-xl cursor-pointer hover:border-emerald-500/50 transition">
+                    <p class="text-xs text-emerald-400 font-medium">New Activation (within 90d)</p>
+                    <p class="text-2xl font-black text-emerald-400 mt-1">${formatNum(newActivationRecords.length)}</p>
+                </div>
+            `;
+
+            // Render Model Matrix Pivot Table
+            renderModelPivotTable(catData);
+
+            // Render License Type Doughnut Chart
+            renderLicenseDoughnutChart(catData);
+
+            // Render RDP User Breakdown Table
+            renderRdpDistributionTable(catData);
+        }
+
+        // MODEL DISTRIBUTION MATRIX (Pivot Table: Rows = Model, Columns = User)
+        function renderModelPivotTable(catData) {
+            window.pivotCache = {}; // reset cache
+            const userCols = ['DUALUSER', 'MULTIUSER', 'SQLUSER', 'SINGLEUSER', 'UNKNOWN'];
+            const matrix = {};
+
+            catData.forEach(r => {
+                const rawModel = r.Model || '#N/A';
+                const cleanModel = getCleanModelName(rawModel);
+                const normUser = normalizeUserCol(r.User);
+
+                if (!matrix[cleanModel]) {
+                    matrix[cleanModel] = {};
+                    userCols.forEach(col => matrix[cleanModel][col] = []);
+                }
+                matrix[cleanModel][normUser].push(r);
+            });
+
+            // Sort model rows alphabetically (N/A at bottom)
+            const models = Object.keys(matrix).sort((a, b) => {
+                if (a === 'N/A') return 1;
+                if (b === 'N/A') return -1;
+                return a.localeCompare(b);
+            });
+
+            let html = `
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-cardBorder text-gray-400 font-semibold uppercase tracking-wider bg-slate-900/60">
+                            <th class="p-3">Model</th>
+                            ${userCols.map(c => `<th class="p-3 text-right">${c}</th>`).join('')}
+                            <th class="p-3 text-right font-bold text-indigo-400">Grand Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-gray-300 font-medium">
+            `;
+
+            const colTotals = {};
+            userCols.forEach(c => colTotals[c] = []);
+            let grandTotalAll = [];
+
+            models.forEach(model => {
+                let rowTotalRecords = [];
+                html += `<tr class="hover:bg-slate-800/40 transition">`;
+                html += `<td class="p-3 font-bold text-white">${model}</td>`;
+
+                userCols.forEach(c => {
+                    const recs = matrix[model][c] || [];
+                    rowTotalRecords = rowTotalRecords.concat(recs);
+                    colTotals[c] = colTotals[c].concat(recs);
+                    grandTotalAll = grandTotalAll.concat(recs);
+
+                    const cacheKey = `pivot_${model}_${c}`;
+                    window.pivotCache[cacheKey] = recs;
+
+                    const count = recs.length;
+                    if (count > 0) {
+                        html += `<td class="p-3 text-right">
+                            <button onclick="openPivotModal('${cacheKey}', '${model} - ${c}')" class="text-indigo-400 hover:text-indigo-300 hover:underline font-bold">
+                                ${formatNum(count)}
+                            </button>
+                        </td>`;
+                    } else {
+                        html += `<td class="p-3 text-right text-gray-600">0</td>`;
+                    }
+                });
+
+                const rowKey = `pivot_${model}_Total`;
+                window.pivotCache[rowKey] = rowTotalRecords;
+
+                html += `<td class="p-3 text-right font-bold text-indigo-300">
+                    <button onclick="openPivotModal('${rowKey}', '${model} - Row Total')" class="hover:underline">
+                        ${formatNum(rowTotalRecords.length)}
+                    </button>
+                </td>`;
+                html += `</tr>`;
+            });
+
+            // Grand Total Bottom Row
+            html += `<tr class="border-t-2 border-indigo-500/30 bg-indigo-950/20 font-bold text-white">`;
+            html += `<td class="p-3 text-indigo-400 uppercase">Grand Total</td>`;
+            userCols.forEach(c => {
+                const count = colTotals[c].length;
+                const colKey = `pivot_Total_${c}`;
+                window.pivotCache[colKey] = colTotals[c];
+
+                html += `<td class="p-3 text-right">
+                    <button onclick="openPivotModal('${colKey}', 'Total - ${c}')" class="text-indigo-400 hover:underline font-bold">
+                        ${formatNum(count)}
+                    </button>
+                </td>`;
+            });
+
+            const allKey = `pivot_All_Total`;
+            window.pivotCache[allKey] = grandTotalAll;
+
+            html += `<td class="p-3 text-right text-indigo-300 font-extrabold text-sm">
+                <button onclick="openPivotModal('${allKey}', 'All Models Total')" class="hover:underline">
+                    ${formatNum(grandTotalAll.length)}
+                </button>
+            </td>`;
+            html += `</tbody></table>`;
+
+            document.getElementById('modelPivotTableContainer').innerHTML = html;
+        }
+
+        function openPivotModal(cacheKey, title) {
+            const records = window.pivotCache[cacheKey] || [];
+            openModal(title, records);
+        }
+
+        // LICENSE TYPE DOUGHNUT CHART
+        function renderLicenseDoughnutChart(catData) {
+            if (window.licenseDoughnutChartInstance) window.licenseDoughnutChartInstance.destroy();
+
+            const licenseMap = {};
+            catData.forEach(r => {
+                const l = r.License_type || 'Unknown';
+                licenseMap[l] = (licenseMap[l] || 0) + 1;
+            });
+
+            const labels = Object.keys(licenseMap);
+            const counts = Object.values(licenseMap);
+
+            const ctx = document.getElementById('licenseDoughnutChart').getContext('2d');
+            window.licenseDoughnutChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6'],
+                        borderWidth: 2,
+                        borderColor: '#111827'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#f3f4f6', font: { size: 10 } } },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 10 },
+                            formatter: (value, ctx) => {
+                                let sum = 0;
+                                let dataArr = ctx.chart.data.datasets[0].data;
+                                dataArr.map(data => { sum += data; });
+                                let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                return percentage;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // RDP USER DISTRIBUTION TABLE
+        function renderRdpDistributionTable(catData) {
+            const rdpMap = {};
+            catData.forEach(r => {
+                const count = parseInt(r['RDP Count'] || '0');
+                if (!rdpMap[count]) rdpMap[count] = [];
+                rdpMap[count].push(r);
+            });
+
+            const sortedRdpCounts = Object.keys(rdpMap).map(Number).sort((a, b) => a - b);
+
+            let html = `
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-cardBorder text-gray-400 font-semibold uppercase bg-slate-900/60">
+                            <th class="p-3">Configured RDP Users</th>
+                            <th class="p-3 text-right">Subscription Count</th>
+                            <th class="p-3 text-right">Total RDP Capacity</th>
+                            <th class="p-3 text-right">Share %</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-gray-300 font-medium">
+            `;
+
+            const totalCatSubs = catData.length;
+
+            sortedRdpCounts.forEach(rdpVal => {
+                const recs = rdpMap[rdpVal];
+                const count = recs.length;
+                const capacity = rdpVal * count;
+                const share = totalCatSubs > 0 ? ((count / totalCatSubs) * 100).toFixed(1) : '0';
+
+                const cacheKey = `rdp_dist_${rdpVal}`;
+                window.pivotCache[cacheKey] = recs;
+
+                html += `<tr class="hover:bg-slate-800/40 transition">
+                    <td class="p-3 font-bold text-white">${rdpVal === 0 ? 'No RDP Users (0)' : rdpVal + ' RDP User(s)'}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="openPivotModal('${cacheKey}', '${rdpVal} RDP Users Subscriptions')" class="text-indigo-400 hover:underline font-bold">
+                            ${formatNum(count)}
+                        </button>
+                    </td>
+                    <td class="p-3 text-right font-bold text-amber-400">${formatNum(capacity)}</td>
+                    <td class="p-3 text-right font-semibold text-gray-400">${share}%</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            document.getElementById('rdpDistributionTableContainer').innerHTML = html;
+        }
+
+        // RAW DATA VIEWER MODAL LOGIC
+        function openModal(title, records) {
+            currentModalRecords = records || [];
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalSubtitle').innerText = `Displaying ${Math.min(currentModalRecords.length, 500)} of ${formatNum(currentModalRecords.length)} pre-filtered records`;
+            document.getElementById('modalRecordCount').innerText = formatNum(currentModalRecords.length);
+            document.getElementById('modalSearchInput').value = '';
+
+            renderModalTable(currentModalRecords.slice(0, 500));
+            document.getElementById('rawDataModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('rawDataModal').classList.add('hidden');
+        }
+
+        function renderModalTable(records) {
+            const tbody = document.getElementById('modalTableBody');
+            tbody.innerHTML = '';
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No records available for this filter.</td></tr>`;
+                return;
+            }
+
+            records.forEach(r => {
+                const status = getSubscriptionStatus(r);
+                const statusBadge = status === 'Active' 
+                    ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>`
+                    : `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Expired</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono text-indigo-300 font-bold">${r.subscriptionId || '#N/A'}</td>
+                    <td class="p-3 font-semibold text-gray-300">${r.licenseCategory || 'N/A'}</td>
+                    <td class="p-3 font-mono text-gray-400 text-[11px]">${r.compguid || '#N/A'}</td>
+                    <td class="p-3 font-mono text-gray-400 text-[11px]">${r.gstin || '#N/A'}</td>
+                    <td class="p-3 font-medium text-white max-w-[180px] truncate" title="${r['Owner Partner'] || ''}">${r['Owner Partner'] || 'Direct'}</td>
+                    <td class="p-3 text-gray-300">${getCleanModelName(r.Model)}</td>
+                    <td class="p-3 text-gray-300">${r.User || 'N/A'}</td>
+                    <td class="p-3 text-gray-400">${r.License_type || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 font-mono text-[11px]">${r.Last_Expiry || r.blsExpiry || 'N/A'}</td>
+                    <td class="p-3 text-right font-bold text-amber-400">${r['RDP Count'] || '0'}</td>
+                    <td class="p-3 text-center">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterModalTable() {
+            const query = document.getElementById('modalSearchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderModalTable(currentModalRecords.slice(0, 500));
+                return;
+            }
+
+            const filtered = currentModalRecords.filter(r => {
+                return (r.subscriptionId && r.subscriptionId.toString().toLowerCase().includes(query)) ||
+                       (r.compguid && r.compguid.toLowerCase().includes(query)) ||
+                       (r.gstin && r.gstin.toLowerCase().includes(query)) ||
+                       (r['Owner Partner'] && r['Owner Partner'].toLowerCase().includes(query)) ||
+                       (r.Model && r.Model.toLowerCase().includes(query));
+            });
+
+            renderModalTable(filtered.slice(0, 500));
+            document.getElementById('modalRecordCount').innerText = `${formatNum(filtered.length)} (Filtered)`;
+        }
+    </script>
 </body>
 </html>
