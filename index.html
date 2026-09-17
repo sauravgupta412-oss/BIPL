@@ -128,7 +128,8 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .number-format { font-variant-numeric: tabular-nums; }
         
-        .scroll-table { overflow-y: auto; max-height: calc(90vh - 140px); }
+        /* RESTORED SCROLL AND MODAL DIMENSIONS */
+        .scroll-table { max-height: 500px; overflow-y: auto; }
         .scroll-table::-webkit-scrollbar { width: 8px; height: 8px; } 
         .scroll-table::-webkit-scrollbar-track { background: var(--bg-primary); } 
         .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -136,7 +137,7 @@
 
         /* MODAL STYLES */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(2px); }
-        .modal-content { background: var(--bg-secondary); width: 98vw; height: 95vh; max-width: none; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .modal-content { background: var(--bg-secondary); width: 100%; max-width: 1400px; max-height: 90vh; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); border-radius: 12px 12px 0 0; }
         .modal-header h2 { font-size: 18px; color: var(--text-primary); }
         .modal-close { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
