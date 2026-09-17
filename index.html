@@ -585,6 +585,7 @@
     <div id="landingPage" class="landing-page" style="display:none;">
         <div class="summary-bar" id="summaryBar"></div>
         <div class="category-grid" id="categoryGrid"></div>
+        
         <div class="charts-section">
             <div class="chart-container">
                 <h3>📊 Customer Cluster Distribution × RDP Adoption % (Top 10)</h3>
@@ -596,6 +597,14 @@
                 <h3>📊 Partner Cluster Distribution × RDP Adoption % (Top 10)</h3>
                 <div class="chart-wrapper">
                     <canvas id="partnerClusterChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- NEW TOP 15 PARTNERS CHART -->
+            <div class="chart-container" style="grid-column: 1 / -1;">
+                <h3>📊 Top 15 Partners by RDP Users Sold (Total Subscriptions vs Total RDP)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="partnerRdpChart"></canvas>
                 </div>
             </div>
         </div>
@@ -1023,6 +1032,7 @@ function renderCharts() {
 
     renderClusterChart('customerClusterChart', 'customerCluster');
     renderClusterChart('partnerClusterChart', 'partnerCluster');
+    renderPartnerRdpChart('partnerRdpChart');
 }
 
 function renderClusterChart(canvasId, field) {
@@ -1074,7 +1084,7 @@ function renderClusterChart(canvasId, field) {
         });
     });
 
-    // ONLY SHOW TOP 10 (Changed from 20)
+    // ONLY SHOW TOP 10
     const sorted = clusterDataArray.sort(function(a, b) { return b.uniqueSubs - a.uniqueSubs; }).slice(0, 10);
 
     const labels = sorted.map(function(s) { return s.name; });
@@ -1208,6 +1218,177 @@ function renderClusterChart(canvasId, field) {
     });
 }
 
+function renderPartnerRdpChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const partnerMap = {};
+    
+    parsedData.forEach(function(row) {
+        const partner = row.ownerPartner;
+        
+        // Filter out empty or unassigned partners
+        if (!partner || partner.trim() === '' || partner.trim().toUpperCase() === 'NULL' || partner.trim() === '#N/A') return;
+
+        const subId = row.subscriptionId;
+        const rdp = row.rdpCount || 0;
+        
+        if (!partnerMap[partner]) {
+            partnerMap[partner] = { subIds: new Set(), rdpMap: {} };
+        }
+        
+        partnerMap[partner].subIds.add(subId);
+        
+        // We only want the max RDP count per unique subscription ID
+        if (partnerMap[partner].rdpMap[subId] === undefined) {
+            partnerMap[partner].rdpMap[subId] = rdp;
+        } else {
+            partnerMap[partner].rdpMap[subId] = Math.max(partnerMap[partner].rdpMap[subId], rdp);
+        }
+    });
+
+    const partnerDataArray = [];
+    Object.keys(partnerMap).forEach(function(partnerName) {
+        const totalSubs = partnerMap[partnerName].subIds.size;
+        
+        let totalRdpUsers = 0;
+        Object.values(partnerMap[partnerName].rdpMap).forEach(function(val) {
+            totalRdpUsers += val;
+        });
+        
+        if (totalRdpUsers > 0) { // Only show partners who actually sold RDP
+            partnerDataArray.push({
+                name: partnerName,
+                totalSubs: totalSubs,
+                totalRdp: totalRdpUsers
+            });
+        }
+    });
+
+    // SORT BY TOTAL RDP AND SHOW TOP 15
+    const sorted = partnerDataArray.sort(function(a, b) { return b.totalRdp - a.totalRdp; }).slice(0, 15);
+
+    const labels = sorted.map(function(s) { return s.name; });
+    const rdpData = sorted.map(function(s) { return s.totalRdp; });
+    const subData = sorted.map(function(s) { return s.totalSubs; });
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total RDP Users',
+                    data: rdpData,
+                    backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                    borderColor: '#f97316',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Total Subscriptions',
+                    data: subData,
+                    type: 'line',
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#22c55e',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4,
+                    order: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 20 } },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#8b8fa3', font: { size: 11 } }
+                },
+                datalabels: {
+                    display: function(context) {
+                        return context.dataset.data[context.dataIndex] > 0;
+                    },
+                    color: function(context) {
+                        return context.datasetIndex === 0 ? '#f97316' : '#22c55e';
+                    },
+                    anchor: function(context) {
+                        return context.datasetIndex === 0 ? 'end' : 'center';
+                    },
+                    align: function(context) {
+                        return context.datasetIndex === 0 ? 'top' : 'bottom';
+                    },
+                    offset: function(context) {
+                        return context.datasetIndex === 0 ? 0 : 8;
+                    },
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function(value) {
+                        return formatLabelNum(value);
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let lbl = context.dataset.label || '';
+                            if (lbl) lbl += ': ';
+                            lbl += context.parsed.y.toLocaleString('en-IN');
+                            return lbl;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#8b8fa3', font: { size: 10 }, maxRotation: 45 },
+                    grid: { color: 'rgba(42, 47, 90, 0.5)' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Total RDP Users',
+                        color: '#f97316',
+                        font: { size: 12, weight: 'bold' }
+                    },
+                    ticks: { color: '#8b8fa3' },
+                    grid: { color: 'rgba(42, 47, 90, 0.5)' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    min: 0,
+                    title: {
+                        display: true,
+                        text: 'Total Subscriptions',
+                        color: '#22c55e',
+                        font: { size: 12, weight: 'bold' }
+                    },
+                    ticks: { color: '#22c55e' },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
 // ===================== DETAIL PAGE =====================
 function showDetailPage(category) {
     document.getElementById('landingPage').style.display = 'none';
@@ -1286,8 +1467,6 @@ function showDetailPage(category) {
 function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     const today = new Date();
 
-    // PERFORMANCE FIX: Pre-map the current category data by compguid
-    // This turns a scan of millions of records into an instant 1-millisecond lookup.
     const currentDataByCompguid = {};
     catData.forEach(function(r) {
         if (r.compguid && r.compguid.trim()) {
@@ -1322,7 +1501,6 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
         const subCompguids = rows.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); });
 
         subCompguids.forEach(function(compguid) {
-            // FAST LOOKUP (Replaced slow filter)
             const matchingCurrentRows = currentDataByCompguid[compguid];
             if (!matchingCurrentRows) return;
 
