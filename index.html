@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busy License Analytics Dashboard</title>
+    <!-- Chart.js and DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #131738;
+            --bg-card: #1a1f4e;
+            --bg-card-hover: #222866;
+            --text-primary: #e8e8e8;
+            --text-secondary: #8b8fa3;
+            --accent-blue: #4a6cf7;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --accent-purple: #a855f7;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: #2a2f5a;
+            --ca-color: #4a6cf7;
+            --ac-color: #a855f7;
+            --gp-color: #22c55e;
+            --rg-color: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .upload-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-card-hover));
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-card-hover);
+        }
+
+        .file-info {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        /* Summary Stats Bar */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .summary-stat {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .summary-stat:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 8px 30px rgba(74, 108, 247, 0.15);
+        }
+
+        .summary-stat .value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .summary-stat .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-stat.blue .value { color: var(--accent-blue); }
+        .summary-stat.green .value { color: var(--accent-green); }
+        .summary-stat.red .value { color: var(--accent-red); }
+        .summary-stat.purple .value { color: var(--accent-purple); }
+        .summary-stat.cyan .value { color: var(--accent-cyan); }
+        .summary-stat.yellow .value { color: var(--accent-yellow); }
+
+        /* Category Cards */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .category-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .category-card.ca { border-top: 3px solid var(--ca-color); }
+        .category-card.ac { border-top: 3px solid var(--ac-color); }
+        .category-card.gp { border-top: 3px solid var(--gp-color); }
+        .category-card.rg { border-top: 3px solid var(--rg-color); }
+
+        .category-card:hover.ca { border-color: var(--ca-color); }
+        .category-card:hover.ac { border-color: var(--ac-color); }
+        .category-card:hover.gp { border-color: var(--gp-color); }
+        .category-card:hover.rg { border-color: var(--rg-color); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .card-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .ca .card-badge { background: rgba(74, 108, 247, 0.2); color: var(--ca-color); }
+        .ac .card-badge { background: rgba(168, 85, 247, 0.2); color: var(--ac-color); }
+        .gp .card-badge { background: rgba(34, 197, 94, 0.2); color: var(--gp-color); }
+        .rg .card-badge { background: rgba(239, 68, 68, 0.2); color: var(--rg-color); }
+
+        .cross-linked-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .card-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .card-progress {
+            height: 4px;
+            background: var(--bg-card);
+            border-radius: 2px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s ease;
+        }
+
+        .ca .card-progress-fill { background: var(--ca-color); }
+        .ac .card-progress-fill { background: var(--ac-color); }
+        .gp .card-progress-fill { background: var(--gp-color); }
+        .rg .card-progress-fill { background: var(--rg-color); }
+
+        .card-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .card-stat-item .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .card-stat-item .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .card-stat-item:nth-child(1) .stat-value { color: var(--accent-yellow); }
+        .card-stat-item:nth-child(2) .stat-value { color: var(--accent-green); }
+        .card-stat-item:nth-child(3) .stat-value { color: var(--accent-red); }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .chart-container h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+        }
+
+        /* Detail Page */
+        .detail-page {
+            display: none;
+        }
+
+        .detail-page.active {
+            display: block;
+        }
+
+        .landing-page.hidden {
+            display: none;
+        }
+
+        .back-btn {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .detail-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 30px;
+        }
+
+        .detail-stat {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .detail-stat .d-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .detail-stat .d-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .detail-stat:nth-child(2) .d-value { color: var(--accent-green); }
+        .detail-stat:nth-child(3) .d-value { color: var(--accent-red); }
+        .detail-stat:nth-child(4) .d-value { color: var(--accent-purple); }
+        .detail-stat:nth-child(5) .d-value { color: var(--accent-cyan); }
+        .detail-stat:nth-child(6) .d-value { color: var(--accent-orange); }
+        .detail-stat:nth-child(7) .d-value { color: var(--accent-yellow); }
+        .detail-stat:nth-child(8) .d-value { color: #f472b6; }
+        .detail-stat:nth-child(9) .d-value { color: #34d399; }
+
+        /* Tables */
+        .table-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+
+        .table-section h3 {
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        tr:hover td {
+            background: rgba(74, 108, 247, 0.05);
+        }
+
+        .overlap-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .overlap-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .overlap-card .overlap-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-orange);
+        }
+
+        .overlap-card .overlap-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+
+        .welcome-screen .icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+
+        .welcome-screen h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-screen p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        .health-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .health-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .health-dot.good { background: var(--accent-green); }
+        .health-dot.warning { background: var(--accent-yellow); }
+        .health-dot.bad { background: var(--accent-red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .number-format {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .scroll-table {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .scroll-table::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-table::-webkit-scrollbar-track {
+            background: var(--bg-card);
+        }
+
+        .scroll-table::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .detail-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .category-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .summary-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .category-grid { grid-template-columns: 1fr; }
+            .summary-bar { grid-template-columns: repeat(2, 1fr); }
+            .charts-section { grid-template-columns: 1fr; }
+            .overlap-section { grid-template-columns: 1fr; }
+            .header { padding: 16px; flex-direction: column; gap: 12px; }
+            .detail-charts { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div>
+        <h1>📊 Busy License Analytics Dashboard</h1>
+        <div class="subtitle">Comprehensive license tracking, cross-category analysis &amp; renewal intelligence</div>
+    </div>
+    <div class="upload-section">
+        <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleFile(event)">
+        <button class="upload-btn" onclick="document.getElementById('csvFile').click()">Manual Upload</button>
+        <span class="file-info" id="fileInfo">Initializing...</span>
+    </div>
+</header>
+
+<div class="container">
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="spinner" id="spinner"></div>
+        <h2 id="loadingTitle">Fetching data from GitHub...</h2>
+        <p id="loadingDesc">Looking for <code>data.csv</code> in the repository root directory.</p>
+    </div>
+
+    <div id="landingPage" class="landing-page" style="display:none;">
+        <div class="summary-bar" id="summaryBar"></div>
+        <div class="category-grid" id="categoryGrid"></div>
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>📊 Customer Cluster Distribution × RDP Adoption %</h3>
+                <div class="chart-wrapper">
+                    <canvas id="customerClusterChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3>📊 Partner Cluster Distribution × RDP Adoption %</h3>
+                <div class="chart-wrapper">
+                    <canvas id="partnerClusterChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailPage" class="detail-page"></div>
+</div>
+
+<script>
+// ===================== GLOBAL CONFIG & STATE =====================
+Chart.register(ChartDataLabels); // Register Datalabels plugin globally
+
+let rawData = [];
+let parsedData = [];
+const CATEGORIES = ['CA', 'Accountant', 'GSTP', 'Regular'];
+const CAT_META = {
+    CA: { code: 'CA', cls: 'ca', color: '#4a6cf7', title: 'CA Overview', desc: 'Chartered Accountant workspace licensing and performance activity mapping.' },
+    Accountant: { code: 'AC', cls: 'ac', color: '#a855f7', title: 'Accountant Overview', desc: 'Corporate financial accountants and custom bookkeeping configurations.' },
+    GSTP: { code: 'GP', cls: 'gp', color: '#22c55e', title: 'GSTP Overview', desc: 'Tax practitioner portal system mappings, endpoints, and telemetry tracks.' },
+    Regular: { code: 'RG', cls: 'rg', color: '#ef4444', title: 'Regular Overview', desc: 'Standard retail packages, standard business units, and base activations.' }
+};
+
+let chartInstances = {};
+
+// ===================== AUTO-LOAD FROM GITHUB =====================
+document.addEventListener("DOMContentLoaded", function() {
+    autoLoadData();
+});
+
+async function autoLoadData() {
+    try {
+        // Appending a timestamp bypasses aggressive browser caching
+        const response = await fetch('data.csv?t=' + new Date().getTime());
+        if (!response.ok) throw new Error('File not found (404)');
+        
+        const text = await response.text();
+        rawData = parseCSV(text);
+        parsedData = processData(rawData);
+        
+        document.getElementById('fileInfo').textContent = '✅ Auto-synced (' + rawData.length.toLocaleString() + ' rows)';
+        document.getElementById('welcomeScreen').style.display = 'none';
+        
+        showLandingPage();
+    } catch (err) {
+        console.warn("Auto-load failed:", err);
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('loadingTitle').innerText = 'Data File Not Found';
+        document.getElementById('loadingTitle').style.color = '#ef4444';
+        document.getElementById('loadingDesc').innerHTML = 'Could not automatically load <code>data.csv</code> from the repository. <br><br>Please ensure the file is uploaded to GitHub, or use the <b>Manual Upload</b> button in the top right.';
+        document.getElementById('fileInfo').textContent = 'Awaiting manual upload';
+    }
+}
+
+// ===================== MANUAL FILE HANDLING =====================
+function handleFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    document.getElementById('fileInfo').textContent = 'Loading: ' + file.name;
+    document.getElementById('welcomeScreen').style.display = 'flex';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('loadingTitle').innerText = 'Parsing File...';
+    document.getElementById('loadingDesc').innerText = 'Please wait while we process ' + file.name;
+    
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('detailPage').style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            rawData = parseCSV(text);
+            parsedData = processData(rawData);
+            document.getElementById('fileInfo').textContent = '✅ ' + file.name + ' (' + rawData.length.toLocaleString() + ' rows)';
+            document.getElementById('welcomeScreen').style.display = 'none';
+            showLandingPage();
+        } catch (err) {
+            document.getElementById('fileInfo').textContent = '❌ Error: ' + err.message;
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('loadingTitle').innerText = 'Parsing Error';
+            document.getElementById('loadingDesc').innerText = err.message;
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ===================== CSV PARSING =====================
+function parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+    if (lines.length < 2) throw new Error('CSV must have header + data rows');
+
+    const headers = parseCSVLine(lines[0]);
+    const data = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length < headers.length - 2) continue;
+        const row = {};
+        headers.forEach(function(h, idx) {
+            row[h.trim()] = (values[idx] || '').trim();
+        });
+        data.push(row);
+    }
+
+    return data;
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+    return result;
+}
+
+// ===================== DATE PARSING =====================
+function parseDate(str) {
+    if (!str || str === '' || str === '########' || str === 'NULL' || str === 'null') return null;
+    let d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+    return null;
+}
+
+// ===================== DATA PROCESSING =====================
+function processData(raw) {
+    return raw.map(function(row) {
+        const getField = function(names) {
+            for (let n = 0; n < names.length; n++) {
+                if (row[names[n]] !== undefined) return row[names[n]];
+                for (const key of Object.keys(row)) {
+                    if (key.toLowerCase().replace(/[\s_\-]/g, '') === names[n].toLowerCase().replace(/[\s_\-]/g, '')) {
+                        return row[key];
+                    }
+                }
+            }
+            return '';
+        };
+
+        const subscriptionId = getField(['subscriptionId', 'subscriptio', 'subscription_id', 'SubscriptionId']);
+        const compguid = getField(['compguid', 'COMPGUID', 'CompGuid']);
+        const gstin = getField(['gstin', 'GSTIN', 'Gstin']);
+        const lastUpdatedDate = getField(['LastUpdatedDate', 'LastUpdat', 'lastupdateddate', 'Last_Updated_Date']);
+        const installDate = getField(['Installdate', 'InstallDate', 'installdate', 'install_date']);
+        const licenseCategory = getField(['licenseCategory', 'licenseCat', 'license_category', 'LicenseCategory']);
+        const lastExpiry = getField(['Last_Expiry', 'Last_Expir', 'last_expiry', 'LastExpiry']);
+        const blsExpiry = getField(['blsExpiry', 'bls_expiry', 'BlsExpiry']);
+        const lastUsed = getField(['last-used', 'last_used', 'lastused', 'LastUsed']);
+        const totalRenewal = getField(['total_renewal', 'total_rene', 'TotalRenewal', 'total_renewal_count']);
+        const licenseType = getField(['License_type', 'License_ty', 'license_type', 'LicenseType']);
+        const model = getField(['Model', 'model']);
+        const user = getField(['User', 'user']);
+        const ownerPartner = getField(['Owner Partner', 'Owner_Partner', 'OwnerPartner', 'owner_partner']);
+        const customerCluster = getField(['Customer Cluster', 'Customer_Cluster', 'CustomerCluster', 'customer_cluster']);
+        const partnerCluster = getField(['Partner Cluster', 'Partner_Cluster', 'PartnerCluster', 'partner_cluster', 'Partner Clu']);
+        const rdpCount = getField(['RDP Count', 'RDP_Count', 'RDPCount', 'rdp_count']);
+
+        return {
+            subscriptionId: subscriptionId,
+            compguid: compguid,
+            gstin: gstin,
+            lastUpdatedDate: parseDate(lastUpdatedDate),
+            lastUpdatedDateRaw: lastUpdatedDate,
+            installDate: parseDate(installDate),
+            installDateRaw: installDate,
+            licenseCategory: normalizeCat(licenseCategory),
+            lastExpiry: parseDate(lastExpiry),
+            lastExpiryRaw: lastExpiry,
+            blsExpiry: parseDate(blsExpiry),
+            blsExpiryRaw: blsExpiry,
+            lastUsed: parseDate(lastUsed),
+            lastUsedRaw: lastUsed,
+            totalRenewal: parseInt(totalRenewal) || 0,
+            licenseType: licenseType,
+            model: model,
+            user: user,
+            ownerPartner: ownerPartner,
+            customerCluster: customerCluster,
+            partnerCluster: partnerCluster,
+            rdpCount: parseInt(rdpCount) || 0
+        };
+    });
+}
+
+function normalizeCat(cat) {
+    if (!cat) return 'Regular';
+    const c = cat.trim().toLowerCase();
+    if (c === 'ca') return 'CA';
+    if (c === 'accountant') return 'Accountant';
+    if (c === 'gstp') return 'GSTP';
+    if (c === 'regular') return 'Regular';
+    return cat.trim();
+}
+
+// ===================== UTILITY =====================
+function formatNum(n) {
+    if (n === undefined || n === null) return '0';
+    return n.toLocaleString('en-IN');
+}
+
+// K/M formatter for chart labels to prevent clutter
+function formatLabelNum(value) {
+    if (value >= 100000) return (value / 100000).toFixed(1).replace(/\.0$/, '') + 'L';
+    if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return value;
+}
+
+function isExpired(row) {
+    const today = new Date();
+    if (row.blsExpiry && row.blsExpiry < today) return true;
+    if (!row.blsExpiry && row.lastExpiry && row.lastExpiry < today) return true;
+    return false;
+}
+
+function isActive(row) {
+    return !isExpired(row);
+}
+
+// Get unique subscription level active/expired counts
+function getSubLevelCounts(dataSubset) {
+    const subMap = {};
+    dataSubset.forEach(function(r) {
+        if (!subMap[r.subscriptionId]) {
+            subMap[r.subscriptionId] = { active: false, expired: false };
+        }
+        if (isActive(r)) {
+            subMap[r.subscriptionId].active = true;
+        } else {
+            subMap[r.subscriptionId].expired = true;
+        }
+    });
+
+    let activeCount = 0;
+    let expiredCount = 0;
+    const totalSubs = Object.keys(subMap).length;
+
+    Object.values(subMap).forEach(function(sub) {
+        if (sub.active) {
+            activeCount++;
+        } else {
+            expiredCount++;
+        }
+    });
+
+    return { totalSubs: totalSubs, activeCount: activeCount, expiredCount: expiredCount };
+}
+
+// ===================== LANDING PAGE =====================
+function showLandingPage() {
+    document.getElementById('landingPage').style.display = 'block';
+    document.getElementById('detailPage').className = 'detail-page';
+    document.getElementById('detailPage').innerHTML = '';
+
+    renderSummaryBar();
+    renderCategoryCards();
+    renderCharts();
+}
+
+function renderSummaryBar() {
+    const container = document.getElementById('summaryBar');
+
+    const counts = getSubLevelCounts(parsedData);
+    const uniqueCompguids = new Set(parsedData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+    const uniqueGSTINs = new Set(parsedData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+    const healthPct = counts.totalSubs > 0 ? Math.round((counts.activeCount / counts.totalSubs) * 100) : 0;
+    let healthLabel, healthClass;
+    if (healthPct >= 70) { healthLabel = 'Good'; healthClass = 'good'; }
+    else if (healthPct >= 40) { healthLabel = 'Warning'; healthClass = 'warning'; }
+    else { healthLabel = 'Critical'; healthClass = 'bad'; }
+
+    container.innerHTML = 
+        '<div class="summary-stat blue">' +
+            '<div class="value number-format">' + formatNum(counts.totalSubs) + '</div>' +
+            '<div class="label">Total Subscriptions</div>' +
+        '</div>' +
+        '<div class="summary-stat green">' +
+            '<div class="value number-format">' + formatNum(counts.activeCount) + '</div>' +
+            '<div class="label">Active Licenses</div>' +
+        '</div>' +
+        '<div class="summary-stat red">' +
+            '<div class="value number-format">' + formatNum(counts.expiredCount) + '</div>' +
+            '<div class="label">Expired Licenses</div>' +
+        '</div>' +
+        '<div class="summary-stat purple">' +
+            '<div class="value number-format">' + formatNum(uniqueCompguids.size) + '</div>' +
+            '<div class="label">Unique CompGUID</div>' +
+        '</div>' +
+        '<div class="summary-stat cyan">' +
+            '<div class="value number-format">' + formatNum(uniqueGSTINs.size) + '</div>' +
+            '<div class="label">Unique GSTIN</div>' +
+        '</div>' +
+        '<div class="summary-stat yellow">' +
+            '<div class="value">' +
+                '<span class="health-indicator">' +
+                    '<span class="health-dot ' + healthClass + '"></span>' +
+                    healthPct + '% ' + healthLabel +
+                '</span>' +
+            '</div>' +
+            '<div class="label">System Health</div>' +
+        '</div>';
+}
+
+function renderCategoryCards() {
+    const container = document.getElementById('categoryGrid');
+    container.innerHTML = '';
+
+    CATEGORIES.forEach(function(cat) {
+        const meta = CAT_META[cat];
+        const catData = parsedData.filter(function(r) { return r.licenseCategory === cat; });
+
+        const counts = getSubLevelCounts(catData);
+
+        // Cross-check CompGUIDs and GSTINs
+        const catCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+        const catGSTINs = new Set(catData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+        const otherCats = CATEGORIES.filter(function(c) { return c !== cat; });
+        const otherData = parsedData.filter(function(r) { return otherCats.indexOf(r.licenseCategory) !== -1; });
+        const otherCompguids = new Set(otherData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+        const otherGSTINs = new Set(otherData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+        let crossCompCount = 0;
+        catCompguids.forEach(function(g) { if (otherCompguids.has(g)) crossCompCount++; });
+        let crossGSTINCount = 0;
+        catGSTINs.forEach(function(g) { if (otherGSTINs.has(g)) crossGSTINCount++; });
+        const crossLinked = crossCompCount + crossGSTINCount;
+
+        const progressPct = counts.totalSubs > 0 ? Math.round((counts.activeCount / counts.totalSubs) * 100) : 0;
+
+        const card = document.createElement('div');
+        card.className = 'category-card ' + meta.cls;
+        card.setAttribute('onclick', 'showDetailPage("' + cat + '")');
+        card.innerHTML = 
+            '<div class="card-header">' +
+                '<div class="card-badge">' + meta.code + '</div>' +
+                '<div class="cross-linked-badge">' + crossLinked + ' Cross-linked</div>' +
+            '</div>' +
+            '<div class="card-title">' + meta.title + '</div>' +
+            '<div class="card-description">' + meta.desc + '</div>' +
+            '<div class="card-progress">' +
+                '<div class="card-progress-fill" style="width: ' + progressPct + '%"></div>' +
+            '</div>' +
+            '<div class="card-stats">' +
+                '<div class="card-stat-item">' +
+                    '<div class="stat-value number-format">' + formatNum(counts.totalSubs) + '</div>' +
+                    '<div class="stat-label">Total</div>' +
+                '</div>' +
+                '<div class="card-stat-item">' +
+                    '<div class="stat-value number-format">' + formatNum(counts.activeCount) + '</div>' +
+                    '<div class="stat-label">Active</div>' +
+                '</div>' +
+                '<div class="card-stat-item">' +
+                    '<div class="stat-value number-format">' + formatNum(counts.expiredCount) + '</div>' +
+                    '<div class="stat-label">Expired</div>' +
+                '</div>' +
+            '</div>';
+        container.appendChild(card);
+    });
+}
+
+// ===================== CHARTS (LANDING PAGE) =====================
+function renderCharts() {
+    // Destroy existing charts
+    Object.keys(chartInstances).forEach(function(key) {
+        chartInstances[key].destroy();
+    });
+    chartInstances = {};
+
+    renderClusterChart('customerClusterChart', 'customerCluster');
+    renderClusterChart('partnerClusterChart', 'partnerCluster');
+}
+
+function renderClusterChart(canvasId, field) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Group directly by Cluster to perfectly map multiple subs
+    const clusterMap = {};
+    
+    parsedData.forEach(function(row) {
+        const clusterName = row[field] || 'Unknown';
+        const subId = row.subscriptionId;
+        const rdp = row.rdpCount || 0;
+        
+        // Initialize cluster map if not exists
+        if (!clusterMap[clusterName]) {
+            clusterMap[clusterName] = {
+                subIds: new Set(),
+                subRdpMap: {} // track the MAX rdp per subscription within THIS cluster
+            };
+        }
+        
+        // 1. Add to unique subscriptions for this cluster
+        clusterMap[clusterName].subIds.add(subId);
+        
+        // 2. Track highest RDP count for this subscription within this cluster
+        if (clusterMap[clusterName].subRdpMap[subId] === undefined) {
+            clusterMap[clusterName].subRdpMap[subId] = rdp;
+        } else {
+            clusterMap[clusterName].subRdpMap[subId] = Math.max(clusterMap[clusterName].subRdpMap[subId], rdp);
+        }
+    });
+
+    // Compute final totals per cluster
+    const clusterDataArray = [];
+    Object.keys(clusterMap).forEach(function(clusterName) {
+        const data = clusterMap[clusterName];
+        const uniqueSubsCount = data.subIds.size;
+        
+        // Count how many subscriptions in this cluster actually use RDP (count > 0)
+        let subsUsingRdpCount = 0;
+        Object.values(data.subRdpMap).forEach(function(val) {
+            if (val > 0) {
+                subsUsingRdpCount++;
+            }
+        });
+        
+        // Calculate Adoption Percentage = (Subscriptions with RDP / Total Subscriptions in Cluster) * 100
+        const rdpPercentage = uniqueSubsCount > 0 ? ((subsUsingRdpCount / uniqueSubsCount) * 100).toFixed(1) : 0;
+        
+        clusterDataArray.push({
+            name: clusterName,
+            uniqueSubs: uniqueSubsCount,
+            rdpPct: parseFloat(rdpPercentage)
+        });
+    });
+
+    // Sort by unique subs descending, grab top 20
+    const sorted = clusterDataArray.sort(function(a, b) { return b.uniqueSubs - a.uniqueSubs; }).slice(0, 20);
+
+    const labels = sorted.map(function(s) { return s.name; });
+    const uniqueSubs = sorted.map(function(s) { return s.uniqueSubs; });
+    const rdpPercentages = sorted.map(function(s) { return s.rdpPct; });
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Unique Subscriptions',
+                    data: uniqueSubs,
+                    backgroundColor: 'rgba(74, 108, 247, 0.7)',
+                    borderColor: 'rgba(74, 108, 247, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'RDP Adoption (%)',
+                    data: rdpPercentages,
+                    type: 'line',
+                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#f97316',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4,
+                    order: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 20 } }, // Give room for labels
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#8b8fa3', font: { size: 11 } }
+                },
+                datalabels: {
+                    display: function(context) {
+                        return context.dataset.data[context.dataIndex] > 0; // only show > 0
+                    },
+                    color: function(context) {
+                        return context.datasetIndex === 0 ? '#e8e8e8' : '#f97316';
+                    },
+                    anchor: function(context) {
+                        return context.datasetIndex === 0 ? 'end' : 'center'; // bars end, line center
+                    },
+                    align: function(context) {
+                        return context.datasetIndex === 0 ? 'bottom' : 'top'; // bars inside, line above
+                    },
+                    offset: function(context) {
+                        return context.datasetIndex === 0 ? 0 : 8; // push line label slightly up
+                    },
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function(value, context) {
+                        if (context.datasetIndex === 1) return value + '%';
+                        return formatLabelNum(value);
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let lbl = context.dataset.label || '';
+                            if (lbl) lbl += ': ';
+                            
+                            if (context.datasetIndex === 1) { 
+                                lbl += context.parsed.y + '%';
+                            } else { 
+                                lbl += context.parsed.y.toLocaleString('en-IN');
+                            }
+                            return lbl;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#8b8fa3', font: { size: 10 }, maxRotation: 45 },
+                    grid: { color: 'rgba(42, 47, 90, 0.5)' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Unique Subscriptions',
+                        color: '#4a6cf7',
+                        font: { size: 12, weight: 'bold' }
+                    },
+                    ticks: { color: '#8b8fa3' },
+                    grid: { color: 'rgba(42, 47, 90, 0.5)' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    min: 0,
+                    title: {
+                        display: true,
+                        text: 'RDP Adoption (%)',
+                        color: '#f97316',
+                        font: { size: 12, weight: 'bold' }
+                    },
+                    ticks: { 
+                        color: '#f97316',
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+// ===================== DETAIL PAGE =====================
+function showDetailPage(category) {
+    document.getElementById('landingPage').style.display = 'none';
+    const detailPage = document.getElementById('detailPage');
+    detailPage.className = 'detail-page active';
+
+    const meta = CAT_META[category];
+    const catData = parsedData.filter(function(r) { return r.licenseCategory === category; });
+    const today = new Date();
+
+    // Basic stats
+    const counts = getSubLevelCounts(catData);
+    const uniqueCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+    const uniqueGSTINs = new Set(catData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+    // RDP - deduplicate by subscription
+    const rdpSubMap = {};
+    catData.forEach(function(r) {
+        if (!rdpSubMap[r.subscriptionId]) {
+            rdpSubMap[r.subscriptionId] = r.rdpCount;
+        } else {
+            rdpSubMap[r.subscriptionId] = Math.max(rdpSubMap[r.subscriptionId], r.rdpCount);
+        }
+    });
+
+    let rdpLicenseCount = 0;
+    let totalRDPUsers = 0;
+    Object.values(rdpSubMap).forEach(function(rdp) {
+        if (rdp > 0) {
+            rdpLicenseCount++;
+            totalRDPUsers += rdp;
+        }
+    });
+
+    // RDP Switch & New Activation calculation
+    const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
+
+    // Build detail page HTML
+    let html = '';
+    html += '<button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>';
+    html += '<div class="detail-title">';
+    html += '<div class="badge-large" style="background: ' + meta.color + '22; color: ' + meta.color + ';">' + meta.code + '</div>';
+    html += '<div>';
+    html += '<h2>' + meta.title + ' — Detailed Analysis</h2>';
+    html += '<div class="detail-desc">' + meta.desc + '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="detail-summary">';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.totalSubs) + '</div><div class="d-label">Unique Subscriptions</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.activeCount) + '</div><div class="d-label">Active Licenses</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.expiredCount) + '</div><div class="d-label">Expired Licenses</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueCompguids.size) + '</div><div class="d-label">Unique COMPGUID</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueGSTINs.size) + '</div><div class="d-label">Unique GSTIN</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(rdpLicenseCount) + '</div><div class="d-label">RDP Licenses</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(totalRDPUsers) + '</div><div class="d-label">Total RDP Users</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.rdpSwitchCount) + '</div><div class="d-label">RDP Switch</div></div>';
+    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.newActivationCount) + '</div><div class="d-label">New Activation</div></div>';
+    html += '</div>';
+
+    // RDP User Table
+    html += buildRDPTable(catData, category);
+
+    // Cross-Category Overlap
+    html += buildOverlapSection(category, catData);
+
+    // Detail Charts
+    html += '<div class="detail-charts">';
+    html += '<div class="chart-container"><h3>📊 License Type Distribution</h3><div class="chart-wrapper"><canvas id="detailLicenseTypeChart"></canvas></div></div>';
+    html += '<div class="chart-container"><h3>📊 Model Distribution</h3><div class="chart-wrapper"><canvas id="detailModelChart"></canvas></div></div>';
+    html += '</div>';
+
+    detailPage.innerHTML = html;
+
+    // Render detail charts after DOM update
+    setTimeout(function() {
+        renderDetailCharts(catData, category);
+    }, 100);
+}
+
+// ===================== RDP SWITCH & NEW ACTIVATION =====================
+function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
+    const today = new Date();
+    const currentCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+
+    let rdpSwitchCount = 0;
+    let newActivationCount = 0;
+
+    // Get all subscription IDs across all categories (excluding current)
+    const otherCatData = parsedData.filter(function(r) { return r.licenseCategory !== currentCategory; });
+
+    // Group other category data by subscription ID
+    const otherSubMap = {};
+    otherCatData.forEach(function(r) {
+        if (!otherSubMap[r.subscriptionId]) otherSubMap[r.subscriptionId] = [];
+        otherSubMap[r.subscriptionId].push(r);
+    });
+
+    // Track already counted compguids to avoid duplicates
+    const countedSwitch = new Set();
+    const countedActivation = new Set();
+
+    // For each subscription in other categories
+    Object.keys(otherSubMap).forEach(function(subId) {
+        const rows = otherSubMap[subId];
+
+        // Check if last_expiry is expired for this subscription
+        const lastExpiryDates = rows.map(function(r) { return r.lastExpiry; }).filter(function(d) { return d; });
+        if (lastExpiryDates.length === 0) return;
+
+        const maxLastExpiry = new Date(Math.max.apply(null, lastExpiryDates.map(function(d) { return d.getTime(); })));
+        if (maxLastExpiry >= today) return; // Not expired, skip
+
+        // Get CompGUIDs of this expired subscription
+        const subCompguids = rows.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); });
+
+        // Check if any CompGUID exists in current category
+        subCompguids.forEach(function(compguid) {
+            if (!currentCompguids.has(compguid)) return;
+
+            // Find matching rows in current category for this compguid
+            const matchingCurrentRows = catData.filter(function(r) { return r.compguid === compguid; });
+
+            matchingCurrentRows.forEach(function(currentRow) {
+                // Calculate 90 days before the last expiry
+                const ninetyDaysBefore = new Date(maxLastExpiry.getTime() - (90 * 24 * 60 * 60 * 1000));
+
+                // RDP Switch check
+                const switchKey = subId + '|' + compguid + '|' + currentRow.subscriptionId;
+                if (!countedSwitch.has(switchKey)) {
+                    if (currentRow.lastUpdatedDate && currentRow.lastUpdatedDate >= ninetyDaysBefore) {
+                        rdpSwitchCount++;
+                        countedSwitch.add(switchKey);
+                    }
+                }
+
+                // New Activation check
+                const actKey = subId + '|' + compguid + '|' + currentRow.subscriptionId;
+                if (!countedActivation.has(actKey)) {
+                    if (currentRow.lastUpdatedDate && currentRow.installDate &&
+                        currentRow.lastUpdatedDate >= ninetyDaysBefore &&
+                        currentRow.installDate >= ninetyDaysBefore) {
+                        newActivationCount++;
+                        countedActivation.add(actKey);
+                    }
+                }
+            });
+        });
+    });
+
+    return { rdpSwitchCount: rdpSwitchCount, newActivationCount: newActivationCount };
+}
+
+// ===================== RDP TABLE =====================
+function buildRDPTable(catData, category) {
+    // Group by subscription, get RDP count per subscription
+    const subRDPMap = {};
+    catData.forEach(function(row) {
+        if (!subRDPMap[row.subscriptionId]) {
+            subRDPMap[row.subscriptionId] = {
+                rdpCount: row.rdpCount,
+                compguids: new Set(),
+                gstins: new Set()
+            };
+        }
+        subRDPMap[row.subscriptionId].rdpCount = Math.max(subRDPMap[row.subscriptionId].rdpCount, row.rdpCount);
+        if (row.compguid && row.compguid.trim()) subRDPMap[row.subscriptionId].compguids.add(row.compguid);
+        if (row.gstin && row.gstin.trim()) subRDPMap[row.subscriptionId].gstins.add(row.gstin);
+    });
+
+    // Determine RDP buckets
+    const rdpBuckets = {};
+    Object.values(subRDPMap).forEach(function(sub) {
+        const key = sub.rdpCount > 0 ? sub.rdpCount.toString() : 'No RDP';
+        if (!rdpBuckets[key]) rdpBuckets[key] = { count: 0, totalCompguid: 0, totalGstin: 0 };
+        rdpBuckets[key].count++;
+        rdpBuckets[key].totalCompguid += sub.compguids.size;
+        rdpBuckets[key].totalGstin += sub.gstins.size;
+    });
+
+    // All possible RDP values 1-25 + extras + No RDP
+    const numericKeys = [];
+    Object.keys(rdpBuckets).forEach(function(key) {
+        const n = parseInt(key);
+        if (!isNaN(n) && numericKeys.indexOf(n) === -1) {
+            numericKeys.push(n);
+        }
+    });
+    numericKeys.sort(function(a, b) { return a - b; });
+
+    let grandCount = 0, grandCompguid = 0, grandGstin = 0;
+    let tableRows = '';
+
+    // Numeric rows
+    numericKeys.forEach(function(num) {
+        const key = num.toString();
+        const bucket = rdpBuckets[key];
+        if (bucket) {
+            const avgCompguid = bucket.count > 0 ? (bucket.totalCompguid / bucket.count).toFixed(2) : '0.00';
+            const avgGstin = bucket.count > 0 ? (bucket.totalGstin / bucket.count).toFixed(2) : '0.00';
+            grandCount += bucket.count;
+            grandCompguid += bucket.totalCompguid;
+            grandGstin += bucket.totalGstin;
+            tableRows += '<tr>' +
+                '<td>' + key + '</td>' +
+                '<td class="number-format">' + formatNum(bucket.count) + '</td>' +
+                '<td>' + avgCompguid + '</td>' +
+                '<td>' + avgGstin + '</td>' +
+            '</tr>';
+        }
+    });
+
+    // No RDP row
+    if (rdpBuckets['No RDP']) {
+        const bucket = rdpBuckets['No RDP'];
+        const avgCompguid = bucket.count > 0 ? (bucket.totalCompguid / bucket.count).toFixed(2) : '0.00';
+        const avgGstin = bucket.count > 0 ? (bucket.totalGstin / bucket.count).toFixed(2) : '0.00';
+        grandCount += bucket.count;
+        grandCompguid += bucket.totalCompguid;
+        grandGstin += bucket.totalGstin;
+        tableRows += '<tr>' +
+            '<td>No RDP</td>' +
+            '<td class="number-format">' + formatNum(bucket.count) + '</td>' +
+            '<td>' + avgCompguid + '</td>' +
+            '<td>' + avgGstin + '</td>' +
+        '</tr>';
+    }
+
+    const grandAvgComp = grandCount > 0 ? (grandCompguid / grandCount).toFixed(2) : '0.00';
+    const grandAvgGstin = grandCount > 0 ? (grandGstin / grandCount).toFixed(2) : '0.00';
+
+    return '<div class="table-section">' +
+        '<h3>📋 RDP User Distribution — ' + category + '</h3>' +
+        '<div class="scroll-table">' +
+            '<table>' +
+                '<thead>' +
+                    '<tr>' +
+                        '<th>RDP User</th>' +
+                        '<th>Count of Serial Number</th>' +
+                        '<th>Average of COMPGUID</th>' +
+                        '<th>Average of GSTIN</th>' +
+                    '</tr>' +
+                '</thead>' +
+                '<tbody>' +
+                    tableRows +
+                    '<tr style="background: var(--bg-card); font-weight: 700;">' +
+                        '<td>Grand Total</td>' +
+                        '<td class="number-format">' + formatNum(grandCount) + '</td>' +
+                        '<td>' + grandAvgComp + '</td>' +
+                        '<td>' + grandAvgGstin + '</td>' +
+                    '</tr>' +
+                '</tbody>' +
+            '</table>' +
+        '</div>' +
+    '</div>';
+}
+
+// ===================== OVERLAP SECTION =====================
+function buildOverlapSection(currentCategory, catData) {
+    const currentCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+    const currentGSTINs = new Set(catData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+    const otherCats = CATEGORIES.filter(function(c) { return c !== currentCategory; });
+    let overlapCards = '';
+
+    otherCats.forEach(function(otherCat) {
+        const otherData = parsedData.filter(function(r) { return r.licenseCategory === otherCat; });
+        const otherCompguids = new Set(otherData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+        const otherGSTINs = new Set(otherData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+        let compOverlap = 0;
+        currentCompguids.forEach(function(g) { if (otherCompguids.has(g)) compOverlap++; });
+        let gstinOverlap = 0;
+        currentGSTINs.forEach(function(g) { if (otherGSTINs.has(g)) gstinOverlap++; });
+        const totalOverlap = compOverlap + gstinOverlap;
+
+        overlapCards += '<div class="overlap-card">' +
+            '<div class="overlap-value">' + formatNum(totalOverlap) + '</div>' +
+            '<div class="overlap-label">Overlap with ' + otherCat + ' License</div>' +
+            '<div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">' +
+                'CompGUID: ' + compOverlap + ' | GSTIN: ' + gstinOverlap +
+            '</div>' +
+        '</div>';
+    });
+
+    return '<div class="table-section" style="background: transparent; border: none; padding: 0;">' +
+        '<h3 style="margin-bottom: 16px;">🔗 Cross Category Relation Overlap — ' + currentCategory + '</h3>' +
+        '<div class="overlap-section">' + overlapCards + '</div>' +
+    '</div>';
+}
+
+// ===================== DETAIL CHARTS =====================
+function renderDetailCharts(catData, category) {
+    // License Type Distribution
+    const licenseTypeMap = {};
+    const subSeen = {};
+    catData.forEach(function(row) {
+        if (!subSeen[row.subscriptionId]) {
+            const lt = row.licenseType || 'Unknown';
+            licenseTypeMap[lt] = (licenseTypeMap[lt] || 0) + 1;
+            subSeen[row.subscriptionId] = true;
+        }
+    });
+
+    const ltLabels = Object.keys(licenseTypeMap);
+    const ltValues = Object.values(licenseTypeMap);
+    const ltColors = ['#4a6cf7', '#a855f7', '#22c55e', '#f97316', '#06b6d4', '#eab308', '#ef4444', '#f472b6'];
+
+    const ltCanvas = document.getElementById('detailLicenseTypeChart');
+    if (ltCanvas) {
+        if (chartInstances['detailLicenseTypeChart']) chartInstances['detailLicenseTypeChart'].destroy();
+        chartInstances['detailLicenseTypeChart'] = new Chart(ltCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ltLabels,
+                datasets: [{
+                    data: ltValues,
+                    backgroundColor: ltColors.slice(0, ltLabels.length),
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#8b8fa3', padding: 16, font: { size: 11 } }
+                    },
+                    datalabels: {
+                        color: '#fff',
+                        font: { size: 11, weight: 'bold' },
+                        formatter: function(value, context) {
+                            const total = context.chart.data.datasets[0].data.reduce(function(a, b) { return a + b; }, 0);
+                            const pct = Math.round((value / total) * 100);
+                            return pct > 3 ? pct + '%' : ''; // Only show if > 3% to avoid slice clipping
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                const pct = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + context.parsed.toLocaleString('en-IN') + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Model Distribution
+    const modelMap = {};
+    const subSeen2 = {};
+    catData.forEach(function(row) {
+        if (!subSeen2[row.subscriptionId]) {
+            const m = row.model || 'Unknown';
+            modelMap[m] = (modelMap[m] || 0) + 1;
+            subSeen2[row.subscriptionId] = true;
+        }
+    });
+
+    const mLabels = Object.keys(modelMap);
+    const mValues = Object.values(modelMap);
+
+    const mCanvas = document.getElementById('detailModelChart');
+    if (mCanvas) {
+        if (chartInstances['detailModelChart']) chartInstances['detailModelChart'].destroy();
+        chartInstances['detailModelChart'] = new Chart(mCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: mLabels,
+                datasets: [{
+                    label: 'Subscription Count',
+                    data: mValues,
+                    backgroundColor: mLabels.map(function(_, i) { return ltColors[i % ltColors.length] + 'CC'; }),
+                    borderColor: mLabels.map(function(_, i) { return ltColors[i % ltColors.length]; }),
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                layout: { padding: { right: 30 } }, // Room for right label
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'right',
+                        color: '#e8e8e8',
+                        font: { size: 11 },
+                        formatter: function(value) {
+                            return value > 0 ? formatLabelNum(value) : '';
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Subscriptions: ' + context.parsed.x.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#8b8fa3' },
+                        grid: { color: 'rgba(42, 47, 90, 0.5)' }
+                    },
+                    y: {
+                        ticks: { color: '#8b8fa3', font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+}
+</script>
+
+</body>
+</html>
