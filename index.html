@@ -132,13 +132,16 @@
 
         /* MODAL STYLES */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 14, 39, 0.9); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--bg-card); width: 100%; max-width: 1400px; max-height: 90vh; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .modal-content { background: var(--bg-card); width: 100%; max-width: 1500px; max-height: 90vh; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
         .modal-header h2 { font-size: 18px; color: var(--text-primary); }
         .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; }
         .modal-close:hover { color: var(--accent-red); }
         .modal-body { overflow: auto; padding: 0; flex: 1; }
         .raw-table th, .raw-table td { white-space: nowrap; font-size: 12px; padding: 8px 12px; }
+        
+        /* Highlight borders for Migration Table */
+        .mig-border-right { border-right: 2px solid var(--accent-blue) !important; }
     </style>
 </head>
 <body>
@@ -198,14 +201,7 @@
                 Showing top 500 records to maintain performance.
             </div>
             <table class="raw-table">
-                <thead>
-                    <tr>
-                        <th>Subscription ID</th><th>CompGUID</th><th>GSTIN</th><th>Category</th>
-                        <th>License Type</th><th>Model</th><th>User</th><th>Customer Cluster</th>
-                        <th>Partner Cluster</th><th>Owner Partner</th><th>RDP Count</th>
-                        <th>Install Date</th><th>Last Updated</th><th>Last Expiry</th><th>BLS Expiry</th>
-                    </tr>
-                </thead>
+                <thead id="modalThead"></thead>
                 <tbody id="modalTableBody"></tbody>
             </table>
         </div>
@@ -220,7 +216,7 @@ let rawData = [];
 let parsedData = [];
 let globalCompToSubs = {};
 let globalGstinToSubs = {};
-window.currentMigrationSets = { switch: new Set(), act: new Set() };
+window.currentMigrationPairs = { switch: [], act: [] };
 
 const CATEGORIES = ['CA', 'Accountant', 'GSTP', 'Regular'];
 const CAT_META = {
@@ -443,7 +439,15 @@ function getSubLevelCounts(dataSubset) {
 }
 
 // ===================== MODAL / RAW DATA =====================
+const STD_HEADERS = `<tr>
+    <th>Subscription ID</th><th>CompGUID</th><th>GSTIN</th><th>Category</th>
+    <th>License Type</th><th>Model</th><th>User</th><th>Customer Cluster</th>
+    <th>Partner Cluster</th><th>Owner Partner</th><th>RDP Count</th>
+    <th>Install Date</th><th>Last Updated</th><th>Last Expiry</th><th>BLS Expiry</th>
+</tr>`;
+
 function showRawData(title, predicate) {
+    document.getElementById('modalThead').innerHTML = STD_HEADERS;
     const filtered = parsedData.filter(predicate);
     document.getElementById('modalTitle').innerText = `Raw Data: ${title} (${filtered.length.toLocaleString()} records)`;
     const renderData = filtered.slice(0, 500);
@@ -465,6 +469,68 @@ function showRawData(title, predicate) {
     document.getElementById('modalWarning').style.display = filtered.length > 500 ? 'block' : 'none';
     document.getElementById('rawModal').style.display = 'flex';
 }
+
+function showMigrationData(title, pairs, type) {
+    let headerHTML = '';
+    
+    if (type === 'new_act') {
+        headerHTML = `<tr>
+            <th colspan="5" style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)" class="mig-border-right">🔴 OLD SUBSCRIPTION</th>
+            <th colspan="5" style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
+            <th style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)">🔗 MATCH</th>
+        </tr>
+        <tr>
+            <th>Sub ID</th><th>Owner Partner</th><th>Expiry Date</th><th>Last Used</th><th class="mig-border-right">Model</th>
+            <th>Sub ID</th><th>Owner Partner</th><th>Install Date</th><th>Last Used</th><th class="mig-border-right">Model</th>
+            <th>Match Criteria</th>
+        </tr>`;
+    } else { // rdp_switch
+        headerHTML = `<tr>
+            <th colspan="5" style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)" class="mig-border-right">🔴 OLD SUBSCRIPTION</th>
+            <th colspan="6" style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
+            <th style="background:var(--bg-secondary); text-align:center; color:var(--text-primary)">🔗 MATCH</th>
+        </tr>
+        <tr>
+            <th>Sub ID</th><th>Owner Partner</th><th>Expiry Date</th><th>Last Used</th><th class="mig-border-right">Model</th>
+            <th>Sub ID</th><th>Owner Partner</th><th>Expiry Date</th><th>Last Used</th><th>Model</th><th class="mig-border-right">RDP Users</th>
+            <th>Match Criteria</th>
+        </tr>`;
+    }
+
+    document.getElementById('modalThead').innerHTML = headerHTML;
+    document.getElementById('modalTitle').innerText = `Comparison Data: ${title} (${pairs.length.toLocaleString()} swaps found)`;
+    
+    const renderData = pairs.slice(0, 500);
+    let html = '';
+    
+    if (renderData.length === 0) {
+        html = `<tr><td colspan="${type==='new_act'?11:12}" style="text-align:center">No data matching this filter.</td></tr>`;
+    } else {
+        renderData.forEach(p => {
+            const old = p.oldSub;
+            const nw = p.newSub;
+            
+            if (type === 'new_act') {
+                html += `<tr>
+                    <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
+                    <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.installDateRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(nw.model)}</td>
+                    <td><b>${p.matchType}:</b> ${p.matchVal}</td>
+                </tr>`;
+            } else {
+                html += `<tr>
+                    <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
+                    <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.lastExpiryRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td>${normalizeModel(nw.model)}</td><td class="mig-border-right">${nw.rdpCount||0}</td>
+                    <td><b>${p.matchType}:</b> ${p.matchVal}</td>
+                </tr>`;
+            }
+        });
+    }
+    
+    document.getElementById('modalTableBody').innerHTML = html;
+    document.getElementById('modalWarning').style.display = pairs.length > 500 ? 'block' : 'none';
+    document.getElementById('rawModal').style.display = 'flex';
+}
+
 function closeRawData() { document.getElementById('rawModal').style.display = 'none'; }
 
 // ===================== LANDING PAGE =====================
@@ -685,10 +751,10 @@ function showDetailPage(category) {
         
         const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
 
-        // Save IDs globally so onclick can access them
-        window.currentMigrationSets = {
-            switch: switchActivation.rdpSwitchIds,
-            act: switchActivation.newActIds
+        // Save pairs globally so onclick can render the custom UI
+        window.currentMigrationPairs = {
+            switch: switchActivation.rdpSwitchPairs,
+            act: switchActivation.newActPairs
         };
 
         let html = `
@@ -704,13 +770,13 @@ function showDetailPage(category) {
                 <div class="detail-stat clickable" onclick="showRawData('Has GSTIN in ${category}', r=>r.licenseCategory==='${category}'&&r.gstin)"><div class="d-value">${formatNum(uniqueGSTINs.size)}</div><div class="d-label">Unique GSTIN</div></div>
                 <div class="detail-stat clickable" onclick="showRawData('Has RDP in ${category}', r=>r.licenseCategory==='${category}'&&r.rdpCount>0)"><div class="d-value">${formatNum(rdpLicenseCount)}</div><div class="d-label">RDP Licenses</div></div>
                 
-                <!-- MIGRATION SWAP AND NEW ACTIVATION - NOW CLICKABLE -->
-                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-orange);" onclick="showRawData('RDP Migration Swaps (Old & New Subs)', r => window.currentMigrationSets.switch.has(r.subscriptionId))">
-                    <div class="d-value" style="color: var(--accent-orange);">${formatNum(switchActivation.rdpSwitchCount)}</div>
+                <!-- NEW COMPARATIVE UI CLICK EVENTS -->
+                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-orange);" onclick="showMigrationData('RDP Migration Swaps', window.currentMigrationPairs.switch, 'rdp_switch')">
+                    <div class="d-value" style="color: var(--accent-orange);">${formatNum(switchActivation.rdpSwitchPairs.length)}</div>
                     <div class="d-label">RDP Migration Swaps (90d)</div>
                 </div>
-                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-yellow);" onclick="showRawData('New Activations (Old & New Subs)', r => window.currentMigrationSets.act.has(r.subscriptionId))">
-                    <div class="d-value" style="color: var(--accent-yellow);">${formatNum(switchActivation.newActivationCount)}</div>
+                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-yellow);" onclick="showMigrationData('New Activations', window.currentMigrationPairs.act, 'new_act')">
+                    <div class="d-value" style="color: var(--accent-yellow);">${formatNum(switchActivation.newActPairs.length)}</div>
                     <div class="d-label">New Activations (90d)</div>
                 </div>
             </div>
@@ -757,16 +823,25 @@ function buildModelMatrix(catData, category) {
 
 function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     const today = new Date();
+    
+    // Hash maps for fast lookup by both criteria
     const currentDataByCompguid = {};
+    const currentDataByGstin = {};
+    
     catData.forEach(r => {
         if (r.compguid) {
             if (!currentDataByCompguid[r.compguid]) currentDataByCompguid[r.compguid] = [];
             currentDataByCompguid[r.compguid].push(r);
         }
+        if (r.gstin) {
+            if (!currentDataByGstin[r.gstin]) currentDataByGstin[r.gstin] = [];
+            currentDataByGstin[r.gstin].push(r);
+        }
     });
 
-    let rdpSwitch = 0, newAct = 0;
-    let rdpSwitchIds = new Set(), newActIds = new Set();
+    let rdpSwitchPairs = [];
+    let newActPairs = [];
+    
     const otherSubMap = {};
     parsedData.forEach(r => {
         if(r.licenseCategory !== currentCategory) {
@@ -776,35 +851,49 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     });
 
     const countedSw = new Set(), countedAct = new Set();
+
     Object.keys(otherSubMap).forEach(subId => {
         const rows = otherSubMap[subId];
         const exps = rows.map(r=>r.lastExpiry).filter(d=>d);
         if(!exps.length) return;
+        
         const maxExp = new Date(Math.max(...exps.map(d=>d.getTime())));
-        if(maxExp >= today) return;
+        if(maxExp >= today) return; 
 
-        rows.map(r=>r.compguid).filter(g=>g).forEach(g => {
-            const matches = currentDataByCompguid[g];
+        // Get the best representative row for the OLD sub (the one with the latest expiry)
+        const oldRow = rows.find(r => r.lastExpiry && r.lastExpiry.getTime() === maxExp.getTime()) || rows[0];
+
+        // Reusable matching logic for both COMPGUID and GSTIN
+        const checkMatch = (val, type, map) => {
+            if(!val) return;
+            const matches = map[val];
             if(!matches) return;
+            
             matches.forEach(cr => {
                 const limit = new Date(maxExp.getTime() - (90*24*60*60*1000));
-                const k1 = subId+'|'+g+'|'+cr.subscriptionId;
-                if(!countedSw.has(k1) && cr.lastUpdatedDate && cr.lastUpdatedDate >= limit) { 
-                    rdpSwitch++; 
-                    countedSw.add(k1);
-                    rdpSwitchIds.add(subId);
-                    rdpSwitchIds.add(cr.subscriptionId);
+                
+                // Uniquely identify the oldSub -> newSub migration event
+                const k = subId + '|' + cr.subscriptionId;
+                
+                if(!countedSw.has(k) && cr.lastUpdatedDate && cr.lastUpdatedDate >= limit) { 
+                    countedSw.add(k);
+                    rdpSwitchPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
                 }
-                if(!countedAct.has(k1) && cr.lastUpdatedDate >= limit && cr.installDate >= limit) { 
-                    newAct++; 
-                    countedAct.add(k1); 
-                    newActIds.add(subId);
-                    newActIds.add(cr.subscriptionId);
+                if(!countedAct.has(k) && cr.lastUpdatedDate >= limit && cr.installDate >= limit) { 
+                    countedAct.add(k);
+                    newActPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
                 }
             });
+        };
+
+        // Check for cross-links based on BOTH CompGuid and GSTIN for every row attached to this SubId
+        rows.forEach(r => {
+            checkMatch(r.compguid, 'COMPGUID', currentDataByCompguid);
+            checkMatch(r.gstin, 'GSTIN', currentDataByGstin);
         });
     });
-    return { rdpSwitchCount: rdpSwitch, newActivationCount: newAct, rdpSwitchIds, newActIds };
+    
+    return { rdpSwitchPairs, newActPairs };
 }
 
 function buildRDPTable(catData, category) {
