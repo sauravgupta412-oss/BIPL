@@ -587,13 +587,13 @@
         <div class="category-grid" id="categoryGrid"></div>
         <div class="charts-section">
             <div class="chart-container">
-                <h3>📊 Customer Cluster Distribution × RDP Adoption %</h3>
+                <h3>📊 Customer Cluster Distribution × RDP Adoption % (Top 10)</h3>
                 <div class="chart-wrapper">
                     <canvas id="customerClusterChart"></canvas>
                 </div>
             </div>
             <div class="chart-container">
-                <h3>📊 Partner Cluster Distribution × RDP Adoption %</h3>
+                <h3>📊 Partner Cluster Distribution × RDP Adoption % (Top 10)</h3>
                 <div class="chart-wrapper">
                     <canvas id="partnerClusterChart"></canvas>
                 </div>
@@ -632,7 +632,6 @@ async function autoLoadData() {
     const spinner = document.getElementById('spinner');
 
     try {
-        // Attempt 1: Fetch compressed data.csv.gz
         const gzResponse = await fetch('data.csv.gz?v=' + Date.now());
         if (gzResponse.ok) {
             loadingTitle.innerText = 'Decompressing Data...';
@@ -659,7 +658,6 @@ async function autoLoadData() {
         console.warn("Auto-load of compressed data.csv.gz failed or not ready:", gzErr);
     }
 
-    // Attempt 2: Fallback to data.csv if present
     try {
         const csvResponse = await fetch('data.csv?v=' + Date.now());
         if (csvResponse.ok) {
@@ -677,7 +675,6 @@ async function autoLoadData() {
         console.warn("Fallback load of data.csv failed:", csvErr);
     }
 
-    // Failure display
     spinner.style.display = 'none';
     loadingTitle.innerText = 'Data File Syncing';
     loadingTitle.style.color = '#eab308';
@@ -1077,7 +1074,8 @@ function renderClusterChart(canvasId, field) {
         });
     });
 
-    const sorted = clusterDataArray.sort(function(a, b) { return b.uniqueSubs - a.uniqueSubs; }).slice(0, 20);
+    // ONLY SHOW TOP 10 (Changed from 20)
+    const sorted = clusterDataArray.sort(function(a, b) { return b.uniqueSubs - a.uniqueSubs; }).slice(0, 10);
 
     const labels = sorted.map(function(s) { return s.name; });
     const uniqueSubs = sorted.map(function(s) { return s.uniqueSubs; });
@@ -1215,75 +1213,88 @@ function showDetailPage(category) {
     document.getElementById('landingPage').style.display = 'none';
     const detailPage = document.getElementById('detailPage');
     detailPage.className = 'detail-page active';
+    detailPage.innerHTML = '<div style="text-align:center; padding: 100px; color: var(--text-secondary);"><div class="spinner"></div><p>Calculating Details...</p></div>';
 
-    const meta = CAT_META[category];
-    const catData = parsedData.filter(function(r) { return r.licenseCategory === category; });
-
-    const counts = getSubLevelCounts(catData);
-    const uniqueCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
-    const uniqueGSTINs = new Set(catData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
-
-    const rdpSubMap = {};
-    catData.forEach(function(r) {
-        if (!rdpSubMap[r.subscriptionId]) {
-            rdpSubMap[r.subscriptionId] = r.rdpCount;
-        } else {
-            rdpSubMap[r.subscriptionId] = Math.max(rdpSubMap[r.subscriptionId], r.rdpCount);
-        }
-    });
-
-    let rdpLicenseCount = 0;
-    let totalRDPUsers = 0;
-    Object.values(rdpSubMap).forEach(function(rdp) {
-        if (rdp > 0) {
-            rdpLicenseCount++;
-            totalRDPUsers += rdp;
-        }
-    });
-
-    const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
-
-    let html = '';
-    html += '<button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>';
-    html += '<div class="detail-title">';
-    html += '<div class="badge-large" style="background: ' + meta.color + '22; color: ' + meta.color + ';">' + meta.code + '</div>';
-    html += '<div>';
-    html += '<h2>' + meta.title + ' — Detailed Analysis</h2>';
-    html += '<div class="detail-desc">' + meta.desc + '</div>';
-    html += '</div>';
-    html += '</div>';
-
-    html += '<div class="detail-summary">';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.totalSubs) + '</div><div class="d-label">Unique Subscriptions</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.activeCount) + '</div><div class="d-label">Active Licenses</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.expiredCount) + '</div><div class="d-label">Expired Licenses</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueCompguids.size) + '</div><div class="d-label">Unique COMPGUID</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueGSTINs.size) + '</div><div class="d-label">Unique GSTIN</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(rdpLicenseCount) + '</div><div class="d-label">RDP Licenses</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(totalRDPUsers) + '</div><div class="d-label">Total RDP Users</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.rdpSwitchCount) + '</div><div class="d-label">RDP Switch</div></div>';
-    html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.newActivationCount) + '</div><div class="d-label">New Activation</div></div>';
-    html += '</div>';
-
-    html += buildRDPTable(catData, category);
-    html += buildOverlapSection(category, catData);
-
-    html += '<div class="detail-charts">';
-    html += '<div class="chart-container"><h3>📊 License Type Distribution</h3><div class="chart-wrapper"><canvas id="detailLicenseTypeChart"></canvas></div></div>';
-    html += '<div class="chart-container"><h3>📊 Model Distribution</h3><div class="chart-wrapper"><canvas id="detailModelChart"></canvas></div></div>';
-    html += '</div>';
-
-    detailPage.innerHTML = html;
-
+    // Using setTimeout so the UI has time to switch pages before heavy calculation begins
     setTimeout(function() {
-        renderDetailCharts(catData, category);
-    }, 100);
+        const meta = CAT_META[category];
+        const catData = parsedData.filter(function(r) { return r.licenseCategory === category; });
+
+        const counts = getSubLevelCounts(catData);
+        const uniqueCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+        const uniqueGSTINs = new Set(catData.map(function(r) { return r.gstin; }).filter(function(g) { return g && g.trim(); }));
+
+        const rdpSubMap = {};
+        catData.forEach(function(r) {
+            if (!rdpSubMap[r.subscriptionId]) {
+                rdpSubMap[r.subscriptionId] = r.rdpCount;
+            } else {
+                rdpSubMap[r.subscriptionId] = Math.max(rdpSubMap[r.subscriptionId], r.rdpCount);
+            }
+        });
+
+        let rdpLicenseCount = 0;
+        let totalRDPUsers = 0;
+        Object.values(rdpSubMap).forEach(function(rdp) {
+            if (rdp > 0) {
+                rdpLicenseCount++;
+                totalRDPUsers += rdp;
+            }
+        });
+
+        const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
+
+        let html = '';
+        html += '<button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>';
+        html += '<div class="detail-title">';
+        html += '<div class="badge-large" style="background: ' + meta.color + '22; color: ' + meta.color + ';">' + meta.code + '</div>';
+        html += '<div>';
+        html += '<h2>' + meta.title + ' — Detailed Analysis</h2>';
+        html += '<div class="detail-desc">' + meta.desc + '</div>';
+        html += '</div>';
+        html += '</div>';
+
+        html += '<div class="detail-summary">';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.totalSubs) + '</div><div class="d-label">Unique Subscriptions</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.activeCount) + '</div><div class="d-label">Active Licenses</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(counts.expiredCount) + '</div><div class="d-label">Expired Licenses</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueCompguids.size) + '</div><div class="d-label">Unique COMPGUID</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(uniqueGSTINs.size) + '</div><div class="d-label">Unique GSTIN</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(rdpLicenseCount) + '</div><div class="d-label">RDP Licenses</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(totalRDPUsers) + '</div><div class="d-label">Total RDP Users</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.rdpSwitchCount) + '</div><div class="d-label">RDP Switch</div></div>';
+        html += '<div class="detail-stat"><div class="d-value number-format">' + formatNum(switchActivation.newActivationCount) + '</div><div class="d-label">New Activation</div></div>';
+        html += '</div>';
+
+        html += buildRDPTable(catData, category);
+        html += buildOverlapSection(category, catData);
+
+        html += '<div class="detail-charts">';
+        html += '<div class="chart-container"><h3>📊 License Type Distribution</h3><div class="chart-wrapper"><canvas id="detailLicenseTypeChart"></canvas></div></div>';
+        html += '<div class="chart-container"><h3>📊 Model Distribution</h3><div class="chart-wrapper"><canvas id="detailModelChart"></canvas></div></div>';
+        html += '</div>';
+
+        detailPage.innerHTML = html;
+
+        setTimeout(function() {
+            renderDetailCharts(catData, category);
+        }, 100);
+    }, 50);
 }
 
-// ===================== RDP SWITCH & NEW ACTIVATION =====================
+// ===================== HIGH-SPEED RDP SWITCH & NEW ACTIVATION =====================
 function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     const today = new Date();
-    const currentCompguids = new Set(catData.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); }));
+
+    // PERFORMANCE FIX: Pre-map the current category data by compguid
+    // This turns a scan of millions of records into an instant 1-millisecond lookup.
+    const currentDataByCompguid = {};
+    catData.forEach(function(r) {
+        if (r.compguid && r.compguid.trim()) {
+            if (!currentDataByCompguid[r.compguid]) currentDataByCompguid[r.compguid] = [];
+            currentDataByCompguid[r.compguid].push(r);
+        }
+    });
 
     let rdpSwitchCount = 0;
     let newActivationCount = 0;
@@ -1311,9 +1322,9 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
         const subCompguids = rows.map(function(r) { return r.compguid; }).filter(function(g) { return g && g.trim(); });
 
         subCompguids.forEach(function(compguid) {
-            if (!currentCompguids.has(compguid)) return;
-
-            const matchingCurrentRows = catData.filter(function(r) { return r.compguid === compguid; });
+            // FAST LOOKUP (Replaced slow filter)
+            const matchingCurrentRows = currentDataByCompguid[compguid];
+            if (!matchingCurrentRows) return;
 
             matchingCurrentRows.forEach(function(currentRow) {
                 const ninetyDaysBefore = new Date(maxLastExpiry.getTime() - (90 * 24 * 60 * 60 * 1000));
