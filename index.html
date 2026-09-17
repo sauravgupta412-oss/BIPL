@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Busy License Analytics Dashboard</title>
-    <!-- Chart.js and DataLabels Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     
     <style>
-        /* LIGHT THEME VARIABLES */
         :root {
             --bg-primary: #f3f4f6;
             --bg-secondary: #ffffff;
@@ -128,16 +126,24 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .number-format { font-variant-numeric: tabular-nums; }
         
-        /* RESTORED SCROLL AND MODAL DIMENSIONS */
-        .scroll-table { max-height: 500px; overflow-y: auto; }
+        .scroll-table { max-height: 600px; overflow: auto; }
         .scroll-table::-webkit-scrollbar { width: 8px; height: 8px; } 
         .scroll-table::-webkit-scrollbar-track { background: var(--bg-primary); } 
         .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .scroll-table::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* MODAL STYLES */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(2px); }
-        .modal-content { background: var(--bg-secondary); width: 100%; max-width: 1400px; max-height: 90vh; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .modal-content { 
+            background: var(--bg-secondary); 
+            width: 100%; 
+            max-width: 1500px;
+            max-height: 90vh; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color); 
+            display: flex; 
+            flex-direction: column; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+        }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); border-radius: 12px 12px 0 0; }
         .modal-header h2 { font-size: 18px; color: var(--text-primary); }
         .modal-close { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
@@ -147,7 +153,6 @@
         .raw-table th, .raw-table td { white-space: nowrap; font-size: 12px; padding: 10px 14px; }
         .mig-border-right { border-right: 2px solid var(--accent-blue) !important; }
         
-        /* TABLE SORTING STYLES */
         th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 20px; }
         th.sortable:hover { background-color: #e2e8f0; }
         th.sortable::after { content: '↕'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 12px; }
@@ -200,7 +205,6 @@
     <div id="detailPage" class="detail-page"></div>
 </div>
 
-<!-- RAW DATA MODAL -->
 <div class="modal-overlay" id="rawModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -220,9 +224,8 @@
 </div>
 
 <script>
-// ===================== GLOBAL CONFIG & STATE =====================
 Chart.register(ChartDataLabels);
-Chart.defaults.color = '#6b7280'; // Update chart text colors for light mode
+Chart.defaults.color = '#6b7280';
 
 let parsedData = [];
 let globalCompToSubs = {};
@@ -239,12 +242,10 @@ const CAT_META = {
 
 let chartInstances = {};
 
-// Enable ESC to close modals
 document.addEventListener('keydown', function(e) {
     if (e.key === "Escape") closeRawData();
 });
 
-// ===================== AUTO-LOAD FROM GITHUB (.gz) =====================
 document.addEventListener("DOMContentLoaded", function() { autoLoadData(); });
 
 async function autoLoadData() {
@@ -315,7 +316,6 @@ function handleFile(event) {
     else reader.readAsText(file);
 }
 
-// ===================== FAST CSV PARSING ENGINE =====================
 function parseCSVLine(line) {
     const result = []; let current = ''; let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
@@ -334,7 +334,6 @@ function parseCSVAndProcess(text) {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return [];
     
-    // Process Headers once for O(1) property mappings
     const rawHeaders = parseCSVLine(lines[0]);
     let headMap = {};
     rawHeaders.forEach((h, i) => headMap[h.toLowerCase().replace(/[\s_\-]/g, '')] = i);
@@ -371,7 +370,7 @@ function parseCSVAndProcess(text) {
 
     for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
-        if (values.length < rawHeaders.length - 2) continue; // skip broken rows
+        if (values.length < rawHeaders.length - 2) continue;
 
         const r = {
             subscriptionId: mapped.subId >= 0 ? values[mapped.subId].trim() : '',
@@ -474,13 +473,11 @@ function getSubLevelCounts(dataSubset) {
     return { total: Object.keys(subMap).length, active, expired };
 }
 
-// ===================== TABLE SORTING =====================
 function sortTable(thElement, colIdx) {
     const table = thElement.closest('table');
     const tbody = table.querySelector('tbody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
     
-    // Asc/Desc toggling
     const isAsc = thElement.classList.contains('asc');
     table.querySelectorAll('th.sortable').forEach(th => th.classList.remove('asc', 'desc'));
     thElement.classList.add(isAsc ? 'desc' : 'asc');
@@ -498,14 +495,12 @@ function sortTable(thElement, colIdx) {
         return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     });
 
-    tbody.append(...rows); // Re-attach sorted rows
+    tbody.append(...rows);
 }
 
-// ===================== MODAL / RAW DATA =====================
 const STD_HEADERS = ['Subscription ID', 'CompGUID', 'GSTIN', 'Category', 'License Type', 'Model', 'User', 'Customer Cluster', 'Partner Cluster', 'Owner Partner', 'RDP Count', 'Install Date', 'Last Updated', 'Last Expiry', 'BLS Expiry'];
 
 function showRawData(title, predicate) {
-    // Generate Sortable Headers
     document.getElementById('modalThead').innerHTML = '<tr>' + STD_HEADERS.map((h, i) => `<th class="sortable" onclick="sortTable(this, ${i})">${h}</th>`).join('') + '</tr>';
     
     const filtered = parsedData.filter(predicate);
@@ -534,18 +529,28 @@ function showMigrationData(title, pairs, type) {
     let headerHTML = '';
     
     if (type === 'new_act') {
-        const hList = ['Sub ID (Old)', 'Partner (Old)', 'Expiry (Old)', 'Last Used (Old)', 'Model (Old)', 'Sub ID (New)', 'Partner (New)', 'Install Date (New)', 'Last Used (New)', 'Model (New)', 'Match Criteria'];
+        // Exact columns requested for New Activation
+        const hList = [
+            'Subscription Id (old)', 'Owner Partner (old)', 'Expiry Date (old)', 'Last Used Date (old)', 'Model (old)',
+            'Subscription Id (new)', 'Owner Partner (new)', 'Install Date (new)', 'Last Used Date (new)', 'Model (new)',
+            'Potential Match based (Compguid / GSTIN)'
+        ];
         headerHTML = `<tr>
-            <th colspan="5" style="background:var(--bg-primary); text-align:center; color:var(--text-primary)" class="mig-border-right">🔴 OLD SUBSCRIPTION</th>
-            <th colspan="5" style="background:var(--bg-primary); text-align:center; color:var(--text-primary)" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
-            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary)">🔗 MATCH</th>
+            <th colspan="5" style="background:#fef2f2; text-align:center; color:#b91c1c; font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
+            <th colspan="5" style="background:#f0fdf4; text-align:center; color:#15803d; font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (Activated)</th>
+            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary); font-weight:700;">🔗 MATCH KEY</th>
         </tr><tr>` + hList.map((h, i) => `<th class="sortable ${i===4||i===9?'mig-border-right':''}" onclick="sortTable(this, ${i})">${h}</th>`).join('') + `</tr>`;
     } else { 
-        const hList = ['Sub ID (Old)', 'Partner (Old)', 'Expiry (Old)', 'Last Used (Old)', 'Model (Old)', 'Sub ID (New)', 'Partner (New)', 'Expiry (New)', 'Last Used (New)', 'Model (New)', 'RDP Users', 'Match Criteria'];
+        // Exact columns requested for RDP Switch
+        const hList = [
+            'Subscription Id (old)', 'Owner Partner (old)', 'Expiry Date (old)', 'Last Used Date (old)', 'Model (old)',
+            'Subscription Id (new)', 'Owner Partner (new)', 'Expiry Date (new)', 'Last Used Date (new)', 'Model (new)', 'RDP user (new)',
+            'Potential Match based (Compguid / GSTIN)'
+        ];
         headerHTML = `<tr>
-            <th colspan="5" style="background:var(--bg-primary); text-align:center; color:var(--text-primary)" class="mig-border-right">🔴 OLD SUBSCRIPTION</th>
-            <th colspan="6" style="background:var(--bg-primary); text-align:center; color:var(--text-primary)" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
-            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary)">🔗 MATCH</th>
+            <th colspan="5" style="background:#fef2f2; text-align:center; color:#b91c1c; font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
+            <th colspan="6" style="background:#f0fdf4; text-align:center; color:#15803d; font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (RDP Switch)</th>
+            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary); font-weight:700;">🔗 MATCH KEY</th>
         </tr><tr>` + hList.map((h, i) => `<th class="sortable ${i===4||i===10?'mig-border-right':''}" onclick="sortTable(this, ${i})">${h}</th>`).join('') + `</tr>`;
     }
 
@@ -564,15 +569,32 @@ function showMigrationData(title, pairs, type) {
             
             if (type === 'new_act') {
                 html += `<tr>
-                    <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
-                    <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.installDateRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(nw.model)}</td>
-                    <td><b>${p.matchType}:</b> ${p.matchVal}</td>
+                    <td>${old.subscriptionId||'-'}</td>
+                    <td>${old.ownerPartner||'-'}</td>
+                    <td>${old.lastExpiryRaw||'-'}</td>
+                    <td>${old.lastUpdatedDateRaw||'-'}</td>
+                    <td class="mig-border-right">${normalizeModel(old.model)}</td>
+                    <td>${nw.subscriptionId||'-'}</td>
+                    <td>${nw.ownerPartner||'-'}</td>
+                    <td>${nw.installDateRaw||'-'}</td>
+                    <td>${nw.lastUpdatedDateRaw||'-'}</td>
+                    <td class="mig-border-right">${normalizeModel(nw.model)}</td>
+                    <td><b>${p.matchType}</b>: ${p.matchVal}</td>
                 </tr>`;
             } else {
                 html += `<tr>
-                    <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
-                    <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.lastExpiryRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td>${normalizeModel(nw.model)}</td><td class="mig-border-right">${nw.rdpCount||0}</td>
-                    <td><b>${p.matchType}:</b> ${p.matchVal}</td>
+                    <td>${old.subscriptionId||'-'}</td>
+                    <td>${old.ownerPartner||'-'}</td>
+                    <td>${old.lastExpiryRaw||'-'}</td>
+                    <td>${old.lastUpdatedDateRaw||'-'}</td>
+                    <td class="mig-border-right">${normalizeModel(old.model)}</td>
+                    <td>${nw.subscriptionId||'-'}</td>
+                    <td>${nw.ownerPartner||'-'}</td>
+                    <td>${nw.lastExpiryRaw||'-'}</td>
+                    <td>${nw.lastUpdatedDateRaw||'-'}</td>
+                    <td>${normalizeModel(nw.model)}</td>
+                    <td class="mig-border-right">${nw.rdpCount||0}</td>
+                    <td><b>${p.matchType}</b>: ${p.matchVal}</td>
                 </tr>`;
             }
         });
@@ -585,7 +607,6 @@ function showMigrationData(title, pairs, type) {
 
 function closeRawData() { document.getElementById('rawModal').style.display = 'none'; }
 
-// ===================== LANDING PAGE =====================
 function showLandingPage() {
     document.getElementById('landingPage').style.display = 'block';
     document.getElementById('detailPage').className = 'detail-page';
@@ -783,7 +804,6 @@ function renderPartnerRdpChart(canvasId) {
     });
 }
 
-// ===================== DETAIL PAGE =====================
 function showDetailPage(category) {
     document.getElementById('landingPage').style.display = 'none';
     const detailPage = document.getElementById('detailPage');
@@ -796,10 +816,10 @@ function showDetailPage(category) {
         const uniqueCompguids = new Set(catData.map(r => r.compguid).filter(g => g));
         const uniqueGSTINs = new Set(catData.map(r => r.gstin).filter(g => g));
         
-        let rdpLicenseCount = 0, totalRDPUsers = 0;
+        let rdpLicenseCount = 0;
         const subRdp = {};
         catData.forEach(r => subRdp[r.subscriptionId] = Math.max(subRdp[r.subscriptionId]||0, r.rdpCount));
-        Object.values(subRdp).forEach(v => { if(v>0) { rdpLicenseCount++; totalRDPUsers+=v; }});
+        Object.values(subRdp).forEach(v => { if(v>0) rdpLicenseCount++; });
         
         const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
         window.currentMigrationPairs = {
