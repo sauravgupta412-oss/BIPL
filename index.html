@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Busy License Analytics Dashboard</title>
-    <!-- Chart.js and DataLabels Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     
     <style>
-        /* LIGHT THEME VARIABLES */
         :root {
             --bg-primary: #f3f4f6;
             --bg-secondary: #ffffff;
@@ -128,12 +126,12 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .number-format { font-variant-numeric: tabular-nums; }
         
-        /* NEW - FULL WIDTH MODAL & INFINITE SCROLL */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 15px; backdrop-filter: blur(2px); }
+        /* FULL-WIDTH MODAL + INFINITE SCROLL */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 12px; backdrop-filter: blur(2px); }
         .modal-content { 
             background: var(--bg-secondary); 
             width: 98vw; 
-            max-width: 1900px; /* Expands across nearly any monitor */
+            max-width: 1900px;
             height: 95vh; 
             border-radius: 12px; 
             border: 1px solid var(--border-color); 
@@ -141,29 +139,28 @@
             flex-direction: column; 
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
         }
-        .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); border-radius: 12px 12px 0 0; }
-        .modal-header h2 { font-size: 18px; color: var(--text-primary); }
-        .modal-close { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); border-radius: 12px 12px 0 0; }
+        .modal-header h2 { font-size: 17px; color: var(--text-primary); }
+        .modal-close { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 20px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
         .modal-close:hover { background: var(--accent-red); color: white; border-color: var(--accent-red); }
         
         .modal-body { overflow: hidden; padding: 0; flex: 1; display: flex; flex-direction: column; }
         
-        /* SCROLL WRAPPER FOR TABLE */
         .scroll-table { flex: 1; overflow: auto; width: 100%; }
-        .scroll-table table { min-width: max-content; } /* Guarantees columns don't squish */
+        .scroll-table table { min-width: max-content; }
         
         .scroll-table::-webkit-scrollbar { width: 10px; height: 10px; } 
         .scroll-table::-webkit-scrollbar-track { background: var(--bg-primary); } 
         .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid var(--bg-primary); }
         .scroll-table::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        .raw-table th, .raw-table td { white-space: nowrap; font-size: 12px; padding: 10px 14px; }
+        /* Compact cells for better fit */
+        .raw-table th, .raw-table td { white-space: nowrap; font-size: 11.5px; padding: 7px 9px; }
         .mig-border-right { border-right: 2px solid #9ca3af !important; }
         
-        /* TABLE SORTING STYLES */
-        th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 20px; }
+        th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 18px; }
         th.sortable:hover { background-color: #e2e8f0; }
-        th.sortable::after { content: '↕'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 12px; }
+        th.sortable::after { content: '↕'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 11px; }
         th.sortable.asc::after { content: '↑'; color: var(--accent-blue); font-weight: bold; }
         th.sortable.desc::after { content: '↓'; color: var(--accent-blue); font-weight: bold; }
     </style>
@@ -219,9 +216,7 @@
             <h2 id="modalTitle">Raw Data Viewer</h2>
             <button class="modal-close" onclick="closeRawData()">&times;</button>
         </div>
-        <div id="modalWarning" style="padding: 10px; background: rgba(245,158,11,0.1); color: var(--accent-yellow); text-align:center; font-size:12px; border-bottom: 1px solid var(--border-color); font-weight:600; display:none;">
-            <!-- Dynamic showing count injected here -->
-        </div>
+        <div id="modalWarning" style="padding: 8px; background: rgba(245,158,11,0.1); color: var(--accent-yellow); text-align:center; font-size:12px; border-bottom: 1px solid var(--border-color); font-weight:600; display:none;"></div>
         <div class="scroll-table" id="modalScrollArea">
             <table class="raw-table">
                 <thead id="modalThead"></thead>
@@ -240,7 +235,6 @@ let globalCompToSubs = {};
 let globalGstinToSubs = {};
 window.currentMigrationPairs = { switch: [], act: [] };
 
-// Pagination State
 let modalData = [];
 let modalType = '';
 let modalIndex = 0;
@@ -256,16 +250,11 @@ const CAT_META = {
 
 let chartInstances = {};
 
-// ESC to close modal + Infinite Scroll Listener
 document.addEventListener("DOMContentLoaded", function() {
     autoLoadData();
-    document.addEventListener('keydown', function(e) {
-        if (e.key === "Escape") closeRawData();
-    });
+    document.addEventListener('keydown', e => { if (e.key === "Escape") closeRawData(); });
     document.getElementById('modalScrollArea').addEventListener('scroll', function() {
-        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
-            loadMoreModalData();
-        }
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 80) loadMoreModalData();
     });
 });
 
@@ -279,30 +268,26 @@ async function autoLoadData() {
         if (gzResponse.ok) {
             loadingTitle.innerText = 'Decompressing Data...';
             const ds = new DecompressionStream('gzip');
-            const decompressedStream = gzResponse.body.pipeThrough(ds);
-            const text = await new Response(decompressedStream).text();
-
+            const text = await new Response(gzResponse.body.pipeThrough(ds)).text();
             loadingTitle.innerText = 'Mapping Records...';
             parsedData = parseCSVAndProcess(text);
-            
             fileInfo.textContent = '✅ Auto-synced (' + parsedData.length.toLocaleString() + ' rows)';
             document.getElementById('welcomeScreen').style.display = 'none';
             showLandingPage();
             return;
         }
-    } catch (gzErr) { console.warn("Auto-load compressed failed:", gzErr); }
+    } catch (e) { console.warn("gz failed:", e); }
 
     try {
         const csvResponse = await fetch('data.csv?v=' + Date.now());
         if (csvResponse.ok) {
-            const text = await csvResponse.text();
-            parsedData = parseCSVAndProcess(text);
+            parsedData = parseCSVAndProcess(await csvResponse.text());
             fileInfo.textContent = '✅ Auto-synced (' + parsedData.length.toLocaleString() + ' rows)';
             document.getElementById('welcomeScreen').style.display = 'none';
             showLandingPage();
             return;
         }
-    } catch (csvErr) { console.warn("Fallback data.csv failed:", csvErr); }
+    } catch (e) { console.warn("csv failed:", e); }
 
     spinner.style.display = 'none';
     loadingTitle.innerText = 'Data File Not Found';
@@ -313,7 +298,6 @@ async function autoLoadData() {
 function handleFile(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     document.getElementById('welcomeScreen').style.display = 'flex';
     document.getElementById('loadingTitle').innerText = 'Parsing File...';
 
@@ -322,12 +306,9 @@ function handleFile(event) {
         try {
             let text = '';
             if (file.name.endsWith('.gz')) {
-                const blob = new Blob([e.target.result]);
                 const ds = new DecompressionStream('gzip');
-                text = await new Response(blob.stream().pipeThrough(ds)).text();
-            } else {
-                text = e.target.result;
-            }
+                text = await new Response(new Blob([e.target.result]).stream().pipeThrough(ds)).text();
+            } else text = e.target.result;
             parsedData = parseCSVAndProcess(text);
             document.getElementById('welcomeScreen').style.display = 'none';
             showLandingPage();
@@ -341,7 +322,7 @@ function parseCSVLine(line) {
     const result = []; let current = ''; let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
         if (line[i] === '"') {
-            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } 
+            if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
             else inQuotes = !inQuotes;
         } else if (line[i] === ',' && !inQuotes) {
             result.push(current); current = '';
@@ -360,9 +341,9 @@ function parseCSVAndProcess(text) {
     rawHeaders.forEach((h, i) => headMap[h.toLowerCase().replace(/[\s_\-]/g, '')] = i);
     
     const getIdx = names => {
-        for(let n of names) {
+        for (let n of names) {
             let key = n.toLowerCase().replace(/[\s_\-]/g, '');
-            if(headMap[key] !== undefined) return headMap[key];
+            if (headMap[key] !== undefined) return headMap[key];
         }
         return -1;
     };
@@ -416,12 +397,12 @@ function parseCSVAndProcess(text) {
         r.lastExpiry = parseDate(r.lastExpiryRaw);
         r.blsExpiry = parseDate(r.blsExpiryRaw);
 
-        if(r.compguid) {
-            if(!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
+        if (r.compguid) {
+            if (!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
             globalCompToSubs[r.compguid].add(r.subscriptionId);
         }
-        if(r.gstin) {
-            if(!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
+        if (r.gstin) {
+            if (!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
             globalGstinToSubs[r.gstin].add(r.subscriptionId);
         }
         processed.push(r);
@@ -451,10 +432,10 @@ function normalizeModel(m) {
 function normalizeUser(u) {
     if (!u) return 'Unknown';
     const lower = u.toLowerCase().replace(/[\s_]/g, '');
-    if(lower.includes('single')) return 'Singleuser';
-    if(lower.includes('dual')) return 'Dualuser';
-    if(lower.includes('multi')) return 'Multiuser';
-    if(lower.includes('sql')) return 'SQLuser';
+    if (lower.includes('single')) return 'Singleuser';
+    if (lower.includes('dual')) return 'Dualuser';
+    if (lower.includes('multi')) return 'Multiuser';
+    if (lower.includes('sql')) return 'SQLuser';
     return 'Unknown';
 }
 
@@ -494,9 +475,9 @@ function getSubLevelCounts(dataSubset) {
     return { total: Object.keys(subMap).length, active, expired };
 }
 
-// ===================== INFINITE SCROLL RENDERER =====================
+// ===================== INFINITE SCROLL =====================
 function loadMoreModalData() {
-    if (modalIndex >= modalData.length) return; // All loaded
+    if (modalIndex >= modalData.length) return;
     
     const slice = modalData.slice(modalIndex, modalIndex + CHUNK_SIZE);
     let html = '';
@@ -510,17 +491,36 @@ function loadMoreModalData() {
                 <td>${item.installDateRaw}</td><td>${item.lastUpdatedDateRaw}</td><td>${item.lastExpiryRaw}</td><td>${item.blsExpiryRaw}</td>
             </tr>`;
         } else if (modalType === 'new_act') {
-            const old = item.oldSub, nw = item.newSub;
+            const o = item.oldSub, n = item.newSub;
             html += `<tr>
-                <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
-                <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.installDateRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(nw.model)}</td>
+                <td>${o.subscriptionId||'-'}</td>
+                <td>${o.ownerPartner||'-'}</td>
+                <td>${o.lastExpiryRaw||'-'}</td>
+                <td>${o.lastUpdatedDateRaw||'-'}</td>
+                <td class="mig-border-right">${normalizeModel(o.model)}</td>
+                <td>${n.subscriptionId||'-'}</td>
+                <td>${n.ownerPartner||'-'}</td>
+                <td>${n.installDateRaw||'-'}</td>
+                <td>${n.lastUpdatedDateRaw||'-'}</td>
+                <td class="mig-border-right">${normalizeModel(n.model)}</td>
                 <td><b>${item.matchType}</b>: ${item.matchVal}</td>
             </tr>`;
         } else if (modalType === 'rdp_switch') {
-            const old = item.oldSub, nw = item.newSub;
+            // Exact column order per your sheet mapping
+            const o = item.oldSub, n = item.newSub;
             html += `<tr>
-                <td>${old.subscriptionId||'-'}</td><td>${old.ownerPartner||'-'}</td><td>${old.lastExpiryRaw||'-'}</td><td>${old.lastUpdatedDateRaw||'-'}</td><td class="mig-border-right">${normalizeModel(old.model)}</td>
-                <td>${nw.subscriptionId||'-'}</td><td>${nw.ownerPartner||'-'}</td><td>${nw.lastExpiryRaw||'-'}</td><td>${nw.lastUpdatedDateRaw||'-'}</td><td>${normalizeModel(nw.model)}</td><td class="mig-border-right">${nw.rdpCount||0}</td>
+                <td>${o.subscriptionId||'-'}</td>
+                <td>${o.ownerPartner||'-'}</td>
+                <td>${o.lastExpiryRaw||'-'}</td>
+                <td>${o.lastUpdatedDateRaw||'-'}</td>
+                <td class="mig-border-right">${normalizeModel(o.model)}</td>
+                <td>${n.subscriptionId||'-'}</td>
+                <td>${n.ownerPartner||'-'}</td>
+                <td>${n.lastExpiryRaw||'-'}</td>
+                <td>${n.lastUpdatedDateRaw||'-'}</td>
+                <td>${n.lastUpdatedDateRaw||'-'}</td>
+                <td>${normalizeModel(n.model)}</td>
+                <td class="mig-border-right">${n.rdpCount||0}</td>
                 <td><b>${item.matchType}</b>: ${item.matchVal}</td>
             </tr>`;
         }
@@ -534,10 +534,9 @@ function loadMoreModalData() {
     document.getElementById('modalWarning').style.display = 'block';
 }
 
-// ===================== ADVANCED ARRAY SORTING =====================
 function getSortValue(item, type, colIdx) {
     if (type === 'raw') {
-        const keys = ['subscriptionId', 'compguid', 'gstin', 'licenseCategory', 'licenseType', 'model', 'user', 'customerCluster', 'partnerCluster', 'ownerPartner', 'rdpCount', 'installDateRaw', 'lastUpdatedDateRaw', 'lastExpiryRaw', 'blsExpiryRaw'];
+        const keys = ['subscriptionId','compguid','gstin','licenseCategory','licenseType','model','user','customerCluster','partnerCluster','ownerPartner','rdpCount','installDateRaw','lastUpdatedDateRaw','lastExpiryRaw','blsExpiryRaw'];
         return item[keys[colIdx]] || '';
     } else if (type === 'new_act') {
         const keys = [
@@ -547,10 +546,21 @@ function getSortValue(item, type, colIdx) {
         ];
         return keys[colIdx](item) || '';
     } else if (type === 'rdp_switch') {
+        // 13 columns matching the new layout
         const keys = [
-            i => i.oldSub.subscriptionId, i => i.oldSub.ownerPartner, i => i.oldSub.lastExpiryRaw, i => i.oldSub.lastUpdatedDateRaw, i => normalizeModel(i.oldSub.model),
-            i => i.newSub.subscriptionId, i => i.newSub.ownerPartner, i => i.newSub.lastExpiryRaw, i => i.newSub.lastUpdatedDateRaw, i => normalizeModel(i.newSub.model), i => i.newSub.rdpCount,
-            i => i.matchVal
+            i => i.oldSub.subscriptionId,          // 0 Sub ID
+            i => i.oldSub.ownerPartner,            // 1 Partner
+            i => i.oldSub.lastExpiryRaw,           // 2 Expiry
+            i => i.oldSub.lastUpdatedDateRaw,      // 3 Last Used
+            i => normalizeModel(i.oldSub.model),   // 4 Model
+            i => i.newSub.subscriptionId,          // 5 Sub ID
+            i => i.newSub.ownerPartner,            // 6 Partner
+            i => i.newSub.lastExpiryRaw,           // 7 Expiry
+            i => i.newSub.lastUpdatedDateRaw,      // 8 LastUpdatedDate
+            i => i.newSub.lastUpdatedDateRaw,      // 9 Last Used Date
+            i => normalizeModel(i.newSub.model),   // 10 Model
+            i => i.newSub.rdpCount,                // 11 RDP user
+            i => i.matchVal                        // 12 Match
         ];
         return keys[colIdx](item) || '';
     }
@@ -558,39 +568,31 @@ function getSortValue(item, type, colIdx) {
 
 function sortModalTable(thElement, colIdx) {
     const isAsc = thElement.classList.contains('asc');
-    const table = thElement.closest('table');
-    table.querySelectorAll('th.sortable').forEach(th => th.classList.remove('asc', 'desc'));
+    thElement.closest('table').querySelectorAll('th.sortable').forEach(th => th.classList.remove('asc','desc'));
     thElement.classList.add(isAsc ? 'desc' : 'asc');
 
-    // Sort the ENTIRE underlying array
     modalData.sort((a, b) => {
         let valA = getSortValue(a, modalType, colIdx);
         let valB = getSortValue(b, modalType, colIdx);
-
-        let numA = typeof valA === 'number' ? valA : parseFloat(String(valA).replace(/,/g, ''));
-        let numB = typeof valB === 'number' ? valB : parseFloat(String(valB).replace(/,/g, ''));
-
+        let numA = typeof valA === 'number' ? valA : parseFloat(String(valA).replace(/,/g,''));
+        let numB = typeof valB === 'number' ? valB : parseFloat(String(valB).replace(/,/g,''));
         if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
             return isAsc ? numA - numB : numB - numA;
         }
-
-        valA = String(valA).toLowerCase();
-        valB = String(valB).toLowerCase();
-        return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return isAsc ? String(valA).toLowerCase().localeCompare(String(valB).toLowerCase())
+                     : String(valB).toLowerCase().localeCompare(String(valA).toLowerCase());
     });
 
-    // Reset pagination and DOM
     modalIndex = 0;
     document.getElementById('modalTableBody').innerHTML = '';
     document.getElementById('modalScrollArea').scrollTop = 0;
     loadMoreModalData();
 }
 
-// ===================== MODAL TRIGGERS =====================
-const STD_HEADERS = ['Subscription ID', 'CompGUID', 'GSTIN', 'Category', 'License Type', 'Model', 'User', 'Customer Cluster', 'Partner Cluster', 'Owner Partner', 'RDP Count', 'Install Date', 'Last Updated', 'Last Expiry', 'BLS Expiry'];
+const STD_HEADERS = ['Subscription ID','CompGUID','GSTIN','Category','License Type','Model','User','Customer Cluster','Partner Cluster','Owner Partner','RDP Count','Install Date','Last Updated','Last Expiry','BLS Expiry'];
 
 function showRawData(title, predicate) {
-    document.getElementById('modalThead').innerHTML = '<tr>' + STD_HEADERS.map((h, i) => `<th class="sortable" onclick="sortModalTable(this, ${i})">${h}</th>`).join('') + '</tr>';
+    document.getElementById('modalThead').innerHTML = '<tr>' + STD_HEADERS.map((h,i) => `<th class="sortable" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + '</tr>';
     document.getElementById('modalTitle').innerText = `Raw Data: ${title}`;
     
     modalData = parsedData.filter(predicate);
@@ -602,9 +604,8 @@ function showRawData(title, predicate) {
     if (modalData.length === 0) {
         document.getElementById('modalTableBody').innerHTML = '<tr><td colspan="15" style="text-align:center">No data matching this filter.</td></tr>';
         document.getElementById('modalWarning').style.display = 'none';
-    } else {
-        loadMoreModalData();
-    }
+    } else loadMoreModalData();
+    
     document.getElementById('rawModal').style.display = 'flex';
 }
 
@@ -612,27 +613,27 @@ function showMigrationData(title, pairs, type) {
     let headerHTML = '';
     
     if (type === 'new_act') {
+        // Short headers — no (old)/(new)
+        const hList = ['Sub ID','Partner','Expiry Date','Last Used','Model', 'Sub ID','Partner','Install Date','Last Used','Model', 'Match Criteria'];
+        headerHTML = `<tr>
+            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
+            <th colspan="5" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (Activated)</th>
+            <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
+        </tr><tr>` + hList.map((h,i) => `<th class="sortable ${i===4||i===9?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
+    } else {
+        // RDP Switch — exact sheet order, short headers
+        // OLD: Sub ID | Partner | Expiry | Last Used | Model
+        // NEW: Sub ID | Partner | Expiry | LastUpdatedDate | Last Used | Model | RDP user
         const hList = [
-            'Subscription Id (old)', 'Owner Partner (old)', 'Expiry Date (old)', 'Last Used Date (old)', 'Model (old)',
-            'Subscription Id (new)', 'Owner Partner (new)', 'Install Date (new)', 'Last Used Date (new)', 'Model (new)',
-            'Potential Match based (Compguid / GSTIN)'
+            'Sub ID','Partner','Expiry Date','Last Used','Model',
+            'Sub ID','Partner','Expiry Date','LastUpdatedDate','Last Used','Model','RDP user',
+            'Match Criteria'
         ];
         headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2; text-align:center; color:#b91c1c; font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
-            <th colspan="5" style="background:#f0fdf4; text-align:center; color:#15803d; font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (Activated)</th>
-            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary); font-weight:700;">🔗 MATCH KEY</th>
-        </tr><tr>` + hList.map((h, i) => `<th class="sortable ${i===4||i===9?'mig-border-right':''}" onclick="sortModalTable(this, ${i})">${h}</th>`).join('') + `</tr>`;
-    } else { 
-        const hList = [
-            'Subscription Id (old)', 'Owner Partner (old)', 'Expiry Date (old)', 'Last Used Date (old)', 'Model (old)',
-            'Subscription Id (new)', 'Owner Partner (new)', 'Expiry Date (new)', 'Last Used Date (new)', 'Model (new)', 'RDP user (new)',
-            'Potential Match based (Compguid / GSTIN)'
-        ];
-        headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2; text-align:center; color:#b91c1c; font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
-            <th colspan="6" style="background:#f0fdf4; text-align:center; color:#15803d; font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (RDP Switch)</th>
-            <th style="background:var(--bg-primary); text-align:center; color:var(--text-primary); font-weight:700;">🔗 MATCH KEY</th>
-        </tr><tr>` + hList.map((h, i) => `<th class="sortable ${i===4||i===10?'mig-border-right':''}" onclick="sortModalTable(this, ${i})">${h}</th>`).join('') + `</tr>`;
+            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
+            <th colspan="7" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (RDP Switch)</th>
+            <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
+        </tr><tr>` + hList.map((h,i) => `<th class="sortable ${i===4||i===11?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
     }
 
     document.getElementById('modalThead').innerHTML = headerHTML;
@@ -645,11 +646,10 @@ function showMigrationData(title, pairs, type) {
     document.getElementById('modalScrollArea').scrollTop = 0;
     
     if (modalData.length === 0) {
-        document.getElementById('modalTableBody').innerHTML = `<tr><td colspan="${type==='new_act'?11:12}" style="text-align:center">No data matching this filter.</td></tr>`;
+        document.getElementById('modalTableBody').innerHTML = `<tr><td colspan="${type==='new_act'?11:13}" style="text-align:center">No data matching this filter.</td></tr>`;
         document.getElementById('modalWarning').style.display = 'none';
-    } else {
-        loadMoreModalData();
-    }
+    } else loadMoreModalData();
+    
     document.getElementById('rawModal').style.display = 'flex';
 }
 
@@ -666,8 +666,8 @@ function showLandingPage() {
 
 function renderSummaryBar() {
     const counts = getSubLevelCounts(parsedData);
-    const uComp = new Set(parsedData.map(r => r.compguid).filter(g => g));
-    const uGst = new Set(parsedData.map(r => r.gstin).filter(g => g));
+    const uComp = new Set(parsedData.map(r => r.compguid).filter(Boolean));
+    const uGst = new Set(parsedData.map(r => r.gstin).filter(Boolean));
     const health = counts.total > 0 ? Math.round((counts.active / counts.total) * 100) : 0;
     
     document.getElementById('summaryBar').innerHTML = `
@@ -682,15 +682,8 @@ function renderSummaryBar() {
         <div class="summary-stat cyan clickable" onclick="showRawData('Has GSTIN', r=>r.gstin)">
             <div class="value number-format">${formatNum(uGst.size)}</div><div class="label">Unique GSTIN</div></div>
         <div class="summary-stat yellow">
-            <div class="value">
-                <span class="health-indicator">
-                    <span class="health-dot ${health>=70?'good':health>=40?'warning':'bad'}"></span>
-                    ${health}%
-                </span>
-            </div>
-            <div class="label">System Health</div>
-        </div>
-    `;
+            <div class="value"><span class="health-indicator"><span class="health-dot ${health>=70?'good':health>=40?'warning':'bad'}"></span>${health}%</span></div>
+            <div class="label">System Health</div></div>`;
 }
 
 function getCrossLinkStats(category) {
@@ -700,18 +693,18 @@ function getCrossLinkStats(category) {
     
     let crossGuidsCount = 0, crossGuidsSubs = new Set();
     guids.forEach(g => {
-        if(globalCompToSubs[g] && globalCompToSubs[g].size > 1) {
-            crossGuidsCount++; globalCompToSubs[g].forEach(s => crossGuidsSubs.add(s));
+        if (globalCompToSubs[g] && globalCompToSubs[g].size > 1) {
+            crossGuidsCount++;
+            globalCompToSubs[g].forEach(s => crossGuidsSubs.add(s));
         }
     });
-
     let crossGstinCount = 0, crossGstinSubs = new Set();
     gstins.forEach(g => {
-        if(globalGstinToSubs[g] && globalGstinToSubs[g].size > 1) {
-            crossGstinCount++; globalGstinToSubs[g].forEach(s => crossGstinSubs.add(s));
+        if (globalGstinToSubs[g] && globalGstinToSubs[g].size > 1) {
+            crossGstinCount++;
+            globalGstinToSubs[g].forEach(s => crossGstinSubs.add(s));
         }
     });
-    
     return { comp: {count: crossGuidsCount, subs: crossGuidsSubs.size}, gstin: {count: crossGstinCount, subs: crossGstinSubs.size} };
 }
 
@@ -729,36 +722,26 @@ function renderCategoryCards() {
         card.className = `category-card ${meta.cls}`;
         card.onclick = () => showDetailPage(cat);
         card.innerHTML = `
-            <div class="card-header">
-                <div class="card-badge">${meta.code}</div>
-            </div>
+            <div class="card-header"><div class="card-badge">${meta.code}</div></div>
             <div class="card-title">${meta.title}</div>
             <div class="card-description">${meta.desc}</div>
-            
             <div class="xl-box">
-                <div class="xl-row">
-                    <span>COMPGUID = <b>${formatNum(cross.comp.count)}</b></span> 
-                    <span>|| Subs Id = <b>${formatNum(cross.comp.subs)}</b></span>
-                </div>
-                <div class="xl-row">
-                    <span>GSTIN = <b>${formatNum(cross.gstin.count)}</b></span> 
-                    <span>|| Subs Id = <b>${formatNum(cross.gstin.subs)}</b></span>
-                </div>
+                <div class="xl-row"><span>COMPGUID = <b>${formatNum(cross.comp.count)}</b></span><span>|| Subs Id = <b>${formatNum(cross.comp.subs)}</b></span></div>
+                <div class="xl-row"><span>GSTIN = <b>${formatNum(cross.gstin.count)}</b></span><span>|| Subs Id = <b>${formatNum(cross.gstin.subs)}</b></span></div>
             </div>
-
-            <div class="card-progress"><div class="card-progress-fill" style="width: ${pct}%"></div></div>
+            <div class="card-progress"><div class="card-progress-fill" style="width:${pct}%"></div></div>
             <div class="card-stats">
                 <div class="card-stat-item"><div class="stat-value">${formatNum(counts.total)}</div><div class="stat-label">Total</div></div>
                 <div class="card-stat-item"><div class="stat-value">${formatNum(counts.active)}</div><div class="stat-label">Active</div></div>
                 <div class="card-stat-item"><div class="stat-value">${formatNum(counts.expired)}</div><div class="stat-label">Expired</div></div>
-            </div>
-        `;
+            </div>`;
         container.appendChild(card);
     });
 }
 
 function renderCharts() {
-    Object.keys(chartInstances).forEach(k => chartInstances[k].destroy()); chartInstances = {};
+    Object.keys(chartInstances).forEach(k => chartInstances[k].destroy());
+    chartInstances = {};
     renderClusterChart('customerClusterChart', 'customerCluster');
     renderClusterChart('partnerClusterChart', 'partnerCluster');
     renderPartnerRdpChart('partnerRdpChart');
@@ -772,40 +755,39 @@ function renderClusterChart(canvasId, field) {
         clusterMap[c].subIds.add(r.subscriptionId);
         clusterMap[c].rdpMap[r.subscriptionId] = Math.max(clusterMap[c].rdpMap[r.subscriptionId] || 0, r.rdpCount);
     });
-
     const dataArr = Object.keys(clusterMap).map(c => {
         const total = clusterMap[c].subIds.size;
         let rdpSubs = 0;
-        Object.values(clusterMap[c].rdpMap).forEach(v => { if(v > 0) rdpSubs++; });
+        Object.values(clusterMap[c].rdpMap).forEach(v => { if (v > 0) rdpSubs++; });
         return { name: c, subs: total, rdpPct: total > 0 ? parseFloat((rdpSubs/total*100).toFixed(1)) : 0 };
-    }).sort((a, b) => b.subs - a.subs).slice(0, 10);
+    }).sort((a,b) => b.subs - a.subs).slice(0, 10);
 
     chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
         type: 'bar',
         data: {
             labels: dataArr.map(d => d.name),
             datasets: [
-                { label: 'Unique Subs', data: dataArr.map(d=>d.subs), backgroundColor: '#3b82f6', yAxisID: 'y', order:2 },
-                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth:3, yAxisID: 'y1', order:1, tension: 0.4 }
+                { label: 'Unique Subs', data: dataArr.map(d=>d.subs), backgroundColor: '#3b82f6', yAxisID: 'y', order: 2 },
+                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             onClick: (e, els, chart) => {
-                if(els.length) showRawData(`${field}: ${chart.data.labels[els[0].index]}`, r => (r[field]||'Unknown') === chart.data.labels[els[0].index]);
+                if (els.length) showRawData(`${field}: ${chart.data.labels[els[0].index]}`, r => (r[field]||'Unknown') === chart.data.labels[els[0].index]);
             },
             plugins: {
                 legend: { display: false },
                 datalabels: {
                     display: c => c.dataset.data[c.dataIndex] > 0,
-                    color: c => c.datasetIndex === 0 ? '#ffffff' : '#f97316',
+                    color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
                     anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
                     align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
                     formatter: (v, c) => c.datasetIndex === 1 ? v+'%' : formatLabelNum(v),
-                    font: {size:10, weight:'bold'}
+                    font: { size: 10, weight: 'bold' }
                 }
             },
-            scales: { y: { position:'left' }, y1: { position:'right', grid:{display:false} } }
+            scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } }
         }
     });
 }
@@ -814,40 +796,42 @@ function renderPartnerRdpChart(canvasId) {
     const partnerMap = {};
     parsedData.forEach(r => {
         const p = r.ownerPartner;
-        if (!p || p.trim()==='' || p.toUpperCase()==='NULL' || p==='#N/A') return;
+        if (!p || !p.trim() || p.toUpperCase() === 'NULL' || p === '#N/A') return;
         if (!partnerMap[p]) partnerMap[p] = { subIds: new Set(), rdpMap: {} };
         partnerMap[p].subIds.add(r.subscriptionId);
-        partnerMap[p].rdpMap[r.subscriptionId] = Math.max(partnerMap[p].rdpMap[r.subscriptionId]||0, r.rdpCount);
+        partnerMap[p].rdpMap[r.subscriptionId] = Math.max(partnerMap[p].rdpMap[r.subscriptionId] || 0, r.rdpCount);
     });
-
     const dataArr = Object.keys(partnerMap).map(p => {
-        let totalRdp = 0; Object.values(partnerMap[p].rdpMap).forEach(v => totalRdp += v);
+        let totalRdp = 0;
+        Object.values(partnerMap[p].rdpMap).forEach(v => totalRdp += v);
         return { name: p, subs: partnerMap[p].subIds.size, rdp: totalRdp };
     }).filter(d => d.rdp > 0).sort((a,b) => b.rdp - a.rdp).slice(0, 15);
 
     chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
         type: 'bar',
         data: {
-            labels: dataArr.map(d=>d.name),
+            labels: dataArr.map(d => d.name),
             datasets: [
-                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: 'rgba(16, 185, 129, 0.8)', yAxisID: 'y', order:2 },
-                { label: 'Total RDP Users', data: dataArr.map(d=>d.rdp), type: 'line', borderColor: '#f97316', borderWidth:3, yAxisID: 'y1', order:1, tension: 0.4 }
+                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: 'rgba(16,185,129,0.8)', yAxisID: 'y', order: 2 },
+                { label: 'Total RDP Users', data: dataArr.map(d=>d.rdp), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             onClick: (e, els, chart) => {
-                if(els.length) showRawData(`Partner: ${chart.data.labels[els[0].index]}`, r => r.ownerPartner === chart.data.labels[els[0].index]);
+                if (els.length) showRawData(`Partner: ${chart.data.labels[els[0].index]}`, r => r.ownerPartner === chart.data.labels[els[0].index]);
             },
             plugins: {
                 legend: { display: false },
                 datalabels: {
-                    color: c => c.datasetIndex === 0 ? '#ffffff' : '#f97316',
-                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center', align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: v => formatLabelNum(v), font: {size:10, weight:'bold'}
+                    color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
+                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
+                    align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
+                    formatter: v => formatLabelNum(v),
+                    font: { size: 10, weight: 'bold' }
                 }
             },
-            scales: { y: { position:'left' }, y1: { position:'right', grid:{display:false} } }
+            scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } }
         }
     });
 }
@@ -856,30 +840,28 @@ function showDetailPage(category) {
     document.getElementById('landingPage').style.display = 'none';
     const detailPage = document.getElementById('detailPage');
     detailPage.className = 'detail-page active';
-    detailPage.innerHTML = '<div style="text-align:center; padding:100px;"><div class="spinner"></div></div>';
+    detailPage.innerHTML = '<div style="text-align:center;padding:100px;"><div class="spinner"></div></div>';
 
     setTimeout(() => {
         const catData = parsedData.filter(r => r.licenseCategory === category);
         const counts = getSubLevelCounts(catData);
-        const uniqueCompguids = new Set(catData.map(r => r.compguid).filter(g => g));
-        const uniqueGSTINs = new Set(catData.map(r => r.gstin).filter(g => g));
+        const uniqueCompguids = new Set(catData.map(r => r.compguid).filter(Boolean));
+        const uniqueGSTINs = new Set(catData.map(r => r.gstin).filter(Boolean));
         
         let rdpLicenseCount = 0;
         const subRdp = {};
         catData.forEach(r => subRdp[r.subscriptionId] = Math.max(subRdp[r.subscriptionId]||0, r.rdpCount));
-        Object.values(subRdp).forEach(v => { if(v>0) rdpLicenseCount++; });
+        Object.values(subRdp).forEach(v => { if (v > 0) rdpLicenseCount++; });
         
         const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
-        window.currentMigrationPairs = {
-            switch: switchActivation.rdpSwitchPairs,
-            act: switchActivation.newActPairs
-        };
+        window.currentMigrationPairs = { switch: switchActivation.rdpSwitchPairs, act: switchActivation.newActPairs };
 
         let html = `
             <button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>
-            <div class="detail-title"><div class="badge-large" style="background:${CAT_META[category].color}22; color:${CAT_META[category].color}">${CAT_META[category].code}</div>
-            <h2>${CAT_META[category].title}</h2></div>
-            
+            <div class="detail-title">
+                <div class="badge-large" style="background:${CAT_META[category].color}22;color:${CAT_META[category].color}">${CAT_META[category].code}</div>
+                <h2>${CAT_META[category].title}</h2>
+            </div>
             <div class="detail-summary">
                 <div class="detail-stat clickable" onclick="showRawData('Subs in ${category}', r=>r.licenseCategory==='${category}')"><div class="d-value">${formatNum(counts.total)}</div><div class="d-label">Unique Subs</div></div>
                 <div class="detail-stat clickable" onclick="showRawData('Active in ${category}', r=>r.licenseCategory==='${category}'&&isActive(r))"><div class="d-value">${formatNum(counts.active)}</div><div class="d-label">Active</div></div>
@@ -887,42 +869,31 @@ function showDetailPage(category) {
                 <div class="detail-stat clickable" onclick="showRawData('Has COMPGUID in ${category}', r=>r.licenseCategory==='${category}'&&r.compguid)"><div class="d-value">${formatNum(uniqueCompguids.size)}</div><div class="d-label">Unique COMPGUID</div></div>
                 <div class="detail-stat clickable" onclick="showRawData('Has GSTIN in ${category}', r=>r.licenseCategory==='${category}'&&r.gstin)"><div class="d-value">${formatNum(uniqueGSTINs.size)}</div><div class="d-label">Unique GSTIN</div></div>
                 <div class="detail-stat clickable" onclick="showRawData('Has RDP in ${category}', r=>r.licenseCategory==='${category}'&&r.rdpCount>0)"><div class="d-value">${formatNum(rdpLicenseCount)}</div><div class="d-label">RDP Licenses</div></div>
-                
-                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-orange);" onclick="showMigrationData('RDP Migration Swaps', window.currentMigrationPairs.switch, 'rdp_switch')">
-                    <div class="d-value" style="color: var(--accent-orange);">${formatNum(switchActivation.rdpSwitchPairs.length)}</div>
+                <div class="detail-stat clickable" style="border:1px dashed var(--accent-orange);" onclick="showMigrationData('RDP Migration Swaps', window.currentMigrationPairs.switch, 'rdp_switch')">
+                    <div class="d-value" style="color:var(--accent-orange);">${formatNum(switchActivation.rdpSwitchPairs.length)}</div>
                     <div class="d-label">RDP Migration Swaps (90d)</div>
                 </div>
-                <div class="detail-stat clickable" style="border: 1px dashed var(--accent-yellow);" onclick="showMigrationData('New Activations', window.currentMigrationPairs.act, 'new_act')">
-                    <div class="d-value" style="color: var(--accent-yellow);">${formatNum(switchActivation.newActPairs.length)}</div>
+                <div class="detail-stat clickable" style="border:1px dashed var(--accent-yellow);" onclick="showMigrationData('New Activations', window.currentMigrationPairs.act, 'new_act')">
+                    <div class="d-value" style="color:var(--accent-yellow);">${formatNum(switchActivation.newActPairs.length)}</div>
                     <div class="d-label">New Activations (90d)</div>
                 </div>
-            </div>
-        `;
+            </div>`;
         html += buildModelMatrix(catData, category);
         html += buildRDPTable(catData, category);
         html += buildOverlapSection(category);
-        
         detailPage.innerHTML = html;
-    }, 50);
+    }, 40);
 }
 
-// ===================== ISSUE #3 FIXED - MODEL MATRIX =====================
 function buildModelMatrix(catData, category) {
-    const targetModels = ['Standard', 'Enterprise', 'Basic', 'Saffron', 'Emerald', 'Blue', 'Neo'];
-    const targetUsers = ['Singleuser', 'Dualuser', 'Multiuser', 'SQLuser'];
+    const targetModels = ['Standard','Enterprise','Basic','Saffron','Emerald','Blue','Neo'];
+    const targetUsers = ['Singleuser','Dualuser','Multiuser','SQLuser'];
     const matrix = {};
-    
-    targetModels.forEach(m => {
-        matrix[m] = {};
-        targetUsers.forEach(u => matrix[m][u] = new Set());
-    });
+    targetModels.forEach(m => { matrix[m] = {}; targetUsers.forEach(u => matrix[m][u] = new Set()); });
 
     catData.forEach(r => {
-        const m = normalizeModel(r.model);
-        const u = normalizeUser(r.user);
-        if (matrix[m] && matrix[m][u]) {
-            matrix[m][u].add(r.subscriptionId);
-        }
+        const m = normalizeModel(r.model), u = normalizeUser(r.user);
+        if (matrix[m] && matrix[m][u]) matrix[m][u].add(r.subscriptionId);
     });
 
     let html = '<div class="table-section"><h3>📊 Model Distribution (Rows: Model, Columns: User)</h3><div class="scroll-table"><table><thead><tr><th>Model</th>';
@@ -936,7 +907,6 @@ function buildModelMatrix(catData, category) {
             const count = matrix[m][u].size;
             rowTot += count;
             if (count === 0) {
-                // Not clickable and shows "--"
                 html += `<td class="number-format" style="color:var(--text-secondary);">--</td>`;
             } else {
                 html += `<td class="clickable-cell number-format" onclick="showRawData('Model: ${m}, User: ${u}', r=>normalizeModel(r.model)==='${m}'&&normalizeUser(r.user)==='${u}'&&r.licenseCategory==='${category}')">${formatNum(count)}</td>`;
@@ -949,8 +919,7 @@ function buildModelMatrix(catData, category) {
 
 function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     const today = new Date();
-    const currentDataByCompguid = {};
-    const currentDataByGstin = {};
+    const currentDataByCompguid = {}, currentDataByGstin = {};
     
     catData.forEach(r => {
         if (r.compguid) {
@@ -966,8 +935,8 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     let rdpSwitchPairs = [], newActPairs = [];
     const otherSubMap = {};
     parsedData.forEach(r => {
-        if(r.licenseCategory !== currentCategory) {
-            if(!otherSubMap[r.subscriptionId]) otherSubMap[r.subscriptionId] = [];
+        if (r.licenseCategory !== currentCategory) {
+            if (!otherSubMap[r.subscriptionId]) otherSubMap[r.subscriptionId] = [];
             otherSubMap[r.subscriptionId].push(r);
         }
     });
@@ -976,28 +945,26 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
 
     Object.keys(otherSubMap).forEach(subId => {
         const rows = otherSubMap[subId];
-        const exps = rows.map(r=>r.lastExpiry).filter(d=>d);
-        if(!exps.length) return;
+        const exps = rows.map(r => r.lastExpiry).filter(Boolean);
+        if (!exps.length) return;
         
-        const maxExp = new Date(Math.max(...exps.map(d=>d.getTime())));
-        if(maxExp >= today) return; 
+        const maxExp = new Date(Math.max(...exps.map(d => d.getTime())));
+        if (maxExp >= today) return;
 
         const oldRow = rows.find(r => r.lastExpiry && r.lastExpiry.getTime() === maxExp.getTime()) || rows[0];
 
         const checkMatch = (val, type, map) => {
-            if(!val) return;
+            if (!val) return;
             const matches = map[val];
-            if(!matches) return;
-            
+            if (!matches) return;
             matches.forEach(cr => {
-                const limit = new Date(maxExp.getTime() - (90*24*60*60*1000));
+                const limit = new Date(maxExp.getTime() - 90*24*60*60*1000);
                 const k = subId + '|' + cr.subscriptionId;
-                
-                if(!countedSw.has(k) && cr.lastUpdatedDate && cr.lastUpdatedDate >= limit) { 
+                if (!countedSw.has(k) && cr.lastUpdatedDate && cr.lastUpdatedDate >= limit) {
                     countedSw.add(k);
                     rdpSwitchPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
                 }
-                if(!countedAct.has(k) && cr.lastUpdatedDate >= limit && cr.installDate >= limit) { 
+                if (!countedAct.has(k) && cr.lastUpdatedDate >= limit && cr.installDate >= limit) {
                     countedAct.add(k);
                     newActPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
                 }
@@ -1026,25 +993,39 @@ function buildRDPTable(catData, category) {
     Object.values(subRDPMap).forEach(s => {
         const k = s.rdpCount > 0 ? s.rdpCount.toString() : 'No RDP';
         if (!buckets[k]) buckets[k] = { count: 0, comp: 0, gst: 0 };
-        buckets[k].count++; buckets[k].comp += s.compguids.size; buckets[k].gst += s.gstins.size;
+        buckets[k].count++;
+        buckets[k].comp += s.compguids.size;
+        buckets[k].gst += s.gstins.size;
     });
 
-    const nums = Object.keys(buckets).map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b);
+    const nums = Object.keys(buckets).map(Number).filter(n => !isNaN(n)).sort((a,b) => a-b);
     let html = '', gc = 0, gcComp = 0, gcGst = 0;
     
     const rowFn = (k, b) => {
         gc += b.count; gcComp += b.comp; gcGst += b.gst;
-        let lbl = k === 'No RDP' ? k : `RDP Count: ${k}`;
-        html += `<tr><td>${k}</td><td class="clickable-cell" onclick="showRawData('${lbl} in ${category}', r=>r.licenseCategory==='${category}'&&(r.rdpCount==${k==='No RDP'?0:k}))">${formatNum(b.count)}</td><td>${b.count>0?(b.comp/b.count).toFixed(2):'0.00'}</td><td>${b.count>0?(b.gst/b.count).toFixed(2):'0.00'}</td></tr>`;
+        const lbl = k === 'No RDP' ? k : `RDP Count: ${k}`;
+        // ROUNDED values (no decimals)
+        html += `<tr>
+            <td>${k}</td>
+            <td class="clickable-cell" onclick="showRawData('${lbl} in ${category}', r=>r.licenseCategory==='${category}'&&(r.rdpCount==${k==='No RDP'?0:k}))">${formatNum(b.count)}</td>
+            <td>${b.count > 0 ? Math.round(b.comp / b.count) : 0}</td>
+            <td>${b.count > 0 ? Math.round(b.gst / b.count) : 0}</td>
+        </tr>`;
     };
 
     nums.forEach(n => rowFn(n.toString(), buckets[n.toString()]));
-    if(buckets['No RDP']) rowFn('No RDP', buckets['No RDP']);
+    if (buckets['No RDP']) rowFn('No RDP', buckets['No RDP']);
 
     return `<div class="table-section"><h3>📋 RDP User Distribution</h3><div class="scroll-table"><table>
         <thead><tr><th>RDP User</th><th>Count of Serial Number</th><th>Avg COMPGUID</th><th>Avg GSTIN</th></tr></thead>
-        <tbody>${html}<tr style="background:var(--bg-card-hover);font-weight:700"><td>Grand Total</td><td>${formatNum(gc)}</td><td>${gc>0?(gcComp/gc).toFixed(2):0}</td><td>${gc>0?(gcGst/gc).toFixed(2):0}</td></tr></tbody>
-    </table></div></div>`;
+        <tbody>${html}
+            <tr style="background:var(--bg-card-hover);font-weight:700">
+                <td>Grand Total</td>
+                <td>${formatNum(gc)}</td>
+                <td>${gc > 0 ? Math.round(gcComp / gc) : 0}</td>
+                <td>${gc > 0 ? Math.round(gcGst / gc) : 0}</td>
+            </tr>
+        </tbody></table></div></div>`;
 }
 
 function buildOverlapSection(currentCategory) {
@@ -1052,9 +1033,14 @@ function buildOverlapSection(currentCategory) {
     let cards = '';
     otherCats.forEach(oCat => {
         cards += `<div class="overlap-card clickable" onclick="showRawData('${oCat} Subs', r=>r.licenseCategory==='${oCat}')">
-            <div class="overlap-value">🔗 Open ${oCat} Data</div><div class="overlap-label">Analyze overlaps via Raw Data</div></div>`;
+            <div class="overlap-value">🔗 Open ${oCat} Data</div>
+            <div class="overlap-label">Analyze overlaps via Raw Data</div>
+        </div>`;
     });
-    return `<div class="table-section" style="background:transparent; border:none; padding:0; box-shadow:none;"><h3 style="margin-bottom:16px;">🔗 Other Categories Quick Links</h3><div class="overlap-section">${cards}</div></div>`;
+    return `<div class="table-section" style="background:transparent;border:none;padding:0;box-shadow:none;">
+        <h3 style="margin-bottom:16px;">🔗 Other Categories Quick Links</h3>
+        <div class="overlap-section">${cards}</div>
+    </div>`;
 }
 </script>
 </body>
