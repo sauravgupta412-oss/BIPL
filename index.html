@@ -154,25 +154,32 @@
         .modal-search-bar .clear-filters-btn:hover { background: #dc2626; }
 
         /* COLUMN FILTER ROW */
-        .filter-row th { padding: 4px 3px; background: var(--bg-card-hover); position: sticky; top: 32px; z-index: 9; }
-        .filter-row input { width: 100%; padding: 5px 7px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 10.5px; outline: none; background: var(--bg-secondary); color: var(--text-primary); }
+        .filter-row th { padding: 4px 3px; background: var(--bg-card-hover); position: sticky; top: 29px; z-index: 9; }
+        .filter-row input { width: 100%; min-width: 50px; padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 10px; outline: none; background: var(--bg-secondary); color: var(--text-primary); }
         .filter-row input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-        .filter-row input::placeholder { color: #aaa; }
         
         .scroll-table { flex: 1; overflow: auto; width: 100%; }
-        .scroll-table table { min-width: max-content; }
+        .scroll-table table { width: auto; min-width: 100%; }
         
         .scroll-table::-webkit-scrollbar { width: 10px; height: 10px; } 
         .scroll-table::-webkit-scrollbar-track { background: var(--bg-primary); } 
         .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid var(--bg-primary); }
-        .scroll-table::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        .raw-table th, .raw-table td { white-space: nowrap; font-size: 11.5px; padding: 7px 9px; }
+        /* OPTIMIZED TABLE COLUMN WIDTHS */
+        .raw-table th, .raw-table td { 
+            white-space: nowrap; 
+            font-size: 11px; 
+            padding: 5px 8px; /* Tighter padding */
+            max-width: 140px; /* Force width reduction */
+            overflow: hidden;
+            text-overflow: ellipsis; 
+        }
+        .raw-table th { padding: 8px 8px; }
         .mig-border-right { border-right: 2px solid #9ca3af !important; }
         
-        th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 18px; }
+        th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 14px; }
         th.sortable:hover { background-color: #e2e8f0; }
-        th.sortable::after { content: '↕'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 11px; }
+        th.sortable::after { content: '↕'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 10px; }
         th.sortable.asc::after { content: '↑'; color: var(--accent-blue); font-weight: bold; }
         th.sortable.desc::after { content: '↓'; color: var(--accent-blue); font-weight: bold; }
 
@@ -196,8 +203,8 @@
 <div class="container">
     <div id="welcomeScreen" class="welcome-screen">
         <div class="spinner" id="spinner"></div>
-        <h2 id="loadingTitle">Loading Dashboard Data...</h2>
-        <p id="loadingDesc">Decompressing and mapping elements for ultra-fast analytics.</p>
+        <h2 id="loadingTitle">Starting Data Engine...</h2>
+        <p id="loadingDesc">Initiating stream parser for ultra-fast load.</p>
     </div>
 
     <div id="landingPage" class="landing-page" style="display:none;">
@@ -215,7 +222,7 @@
             </div>
             
             <div class="chart-container" style="grid-column: 1 / -1;">
-                <h3>📊 Top 15 Partners by RDP Users Sold (Total Subscriptions vs Total RDP)</h3>
+                <h3>📊 Top 15 Partners by RDP Subscriptions (Total Subscriptions vs RDP Adoption %)</h3>
                 <div class="chart-wrapper"><canvas id="partnerRdpChart"></canvas></div>
             </div>
         </div>
@@ -251,18 +258,19 @@ Chart.register(ChartDataLabels);
 Chart.defaults.color = '#6b7280';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_MAP = {'jan':0,'feb':1,'mar':2,'apr':3,'may':4,'jun':5,'jul':6,'aug':7,'sep':8,'oct':9,'nov':10,'dec':11};
 
 let parsedData = [];
 let globalCompToSubs = {};
 let globalGstinToSubs = {};
+let mappedCols = {};
 window.currentMigrationPairs = { switch: [], act: [] };
 
-let modalDataOriginal = [];   // unfiltered full set
-let modalDataFiltered = [];   // after filters applied
+let modalDataOriginal = [];   
+let modalDataFiltered = [];   
 let modalType = '';
 let modalIndex = 0;
 const CHUNK_SIZE = 150;
-let columnFilters = [];
 
 const CATEGORIES = ['CA', 'Accountant', 'GSTP', 'Regular'];
 const CAT_META = {
@@ -282,86 +290,115 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 
+// ================= STREAMING ENGINE =================
 async function autoLoadData() {
-    const fileInfo = document.getElementById('fileInfo');
     const loadingTitle = document.getElementById('loadingTitle');
+    const loadingDesc = document.getElementById('loadingDesc');
     const spinner = document.getElementById('spinner');
 
     try {
         const gzResponse = await fetch('data.csv.gz?v=' + Date.now());
         if (gzResponse.ok) {
-            loadingTitle.innerText = 'Decompressing Data...';
+            loadingTitle.innerText = 'Downloading & Processing (GZ)...';
             const ds = new DecompressionStream('gzip');
-            const text = await new Response(gzResponse.body.pipeThrough(ds)).text();
-            loadingTitle.innerText = 'Mapping Records...';
-            parsedData = parseCSVAndProcess(text);
-            fileInfo.textContent = '✅ Auto-synced (' + parsedData.length.toLocaleString() + ' rows)';
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
+            await streamProcessCSV(gzResponse.body.pipeThrough(ds));
             return;
         }
-    } catch (e) { console.warn("gz failed:", e); }
+    } catch (e) { console.warn("gz fetch failed:", e); }
 
     try {
         const csvResponse = await fetch('data.csv?v=' + Date.now());
         if (csvResponse.ok) {
-            parsedData = parseCSVAndProcess(await csvResponse.text());
-            fileInfo.textContent = '✅ Auto-synced (' + parsedData.length.toLocaleString() + ' rows)';
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
+            loadingTitle.innerText = 'Downloading & Processing...';
+            await streamProcessCSV(csvResponse.body);
             return;
         }
-    } catch (e) { console.warn("csv failed:", e); }
+    } catch (e) { console.warn("csv fetch failed:", e); }
 
     spinner.style.display = 'none';
     loadingTitle.innerText = 'Data File Not Found';
     loadingTitle.style.color = 'var(--accent-yellow)';
-    document.getElementById('loadingDesc').innerHTML = 'Please check GitHub or use the <b>Manual Upload</b> button.';
+    loadingDesc.innerHTML = 'Please check GitHub or use the <b>Manual Upload</b> button.';
 }
 
 function handleFile(event) {
     const file = event.target.files[0];
     if (!file) return;
     document.getElementById('welcomeScreen').style.display = 'flex';
-    document.getElementById('loadingTitle').innerText = 'Parsing File...';
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            let text = '';
-            if (file.name.endsWith('.gz')) {
-                const ds = new DecompressionStream('gzip');
-                text = await new Response(new Blob([e.target.result]).stream().pipeThrough(ds)).text();
-            } else text = e.target.result;
-            parsedData = parseCSVAndProcess(text);
-            document.getElementById('welcomeScreen').style.display = 'none';
-            showLandingPage();
-        } catch (err) { alert('Parsing Error: ' + err.message); }
-    };
-    if (file.name.endsWith('.gz')) reader.readAsArrayBuffer(file);
-    else reader.readAsText(file);
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('loadingTitle').innerText = 'Processing File...';
+    
+    if (file.name.endsWith('.gz')) {
+        const ds = new DecompressionStream('gzip');
+        streamProcessCSV(file.stream().pipeThrough(ds));
+    } else {
+        streamProcessCSV(file.stream());
+    }
 }
 
-function parseCSVLine(line) {
-    const result = []; let current = ''; let inQuotes = false;
+async function streamProcessCSV(readableStream) {
+    const reader = readableStream.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = '';
+    let isFirstLine = true;
+    let count = 0;
+    
+    parsedData = [];
+    globalCompToSubs = {};
+    globalGstinToSubs = {};
+    const loadingDesc = document.getElementById('loadingDesc');
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += value;
+        
+        let newlineIdx;
+        while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+            let line = buffer.slice(0, newlineIdx).trim();
+            buffer = buffer.slice(newlineIdx + 1);
+            if (!line) continue;
+            
+            if (isFirstLine) {
+                setupColumnMapping(fastParseLine(line));
+                isFirstLine = false;
+            } else {
+                processRowFast(fastParseLine(line));
+                count++;
+                if (count % 35000 === 0) {
+                    loadingDesc.innerText = `Processed ${count.toLocaleString()} rows...`;
+                }
+            }
+        }
+    }
+    
+    if (buffer.trim() && !isFirstLine) {
+        processRowFast(fastParseLine(buffer.trim()));
+    }
+    
+    document.getElementById('fileInfo').textContent = `✅ Ready (${parsedData.length.toLocaleString()} rows)`;
+    document.getElementById('welcomeScreen').style.display = 'none';
+    showLandingPage();
+}
+
+function fastParseLine(line) {
+    if (line.indexOf('"') === -1) return line.split(',');
+    const result = [];
+    let current = '';
+    let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') {
+        const char = line[i];
+        if (char === '"') {
             if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
             else inQuotes = !inQuotes;
-        } else if (line[i] === ',' && !inQuotes) {
+        } else if (char === ',' && !inQuotes) {
             result.push(current); current = '';
-        } else current += line[i];
+        } else current += char;
     }
     result.push(current);
     return result;
 }
 
-function parseCSVAndProcess(text) {
-    text = text.replace(/^\uFEFF/, '');
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) return [];
-    
-    const rawHeaders = parseCSVLine(lines[0]);
+function setupColumnMapping(rawHeaders) {
     let headMap = {};
     rawHeaders.forEach((h, i) => headMap[h.trim().replace(/^\uFEFF/, '').toLowerCase().replace(/[\s_\-]/g, '')] = i);
     
@@ -373,7 +410,7 @@ function parseCSVAndProcess(text) {
         return -1;
     };
     
-    const mapped = {
+    mappedCols = {
         subId: getIdx(['subscriptionid', 'subid']),
         compguid: getIdx(['compguid']),
         gstin: getIdx(['gstin']),
@@ -391,81 +428,67 @@ function parseCSVAndProcess(text) {
         rdpCount: getIdx(['rdpcount']),
         lastActive: getIdx(['lastactive', 'lastuseddate', 'lastused'])
     };
-
-    const processed = [];
-    globalCompToSubs = {};
-    globalGstinToSubs = {};
-
-    for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length < rawHeaders.length - 2) continue;
-
-        const r = {
-            subscriptionId: mapped.subId >= 0 ? values[mapped.subId].trim() : '',
-            compguid: mapped.compguid >= 0 ? values[mapped.compguid].trim() : '',
-            gstin: mapped.gstin >= 0 ? values[mapped.gstin].trim() : '',
-            rdpUpdateRaw: mapped.rdpUpdate >= 0 ? values[mapped.rdpUpdate].trim() : '',
-            lastActiveRaw: mapped.lastActive >= 0 ? values[mapped.lastActive].trim() : '',
-            installDateRaw: mapped.installDate >= 0 ? values[mapped.installDate].trim() : '',
-            licenseCategory: normalizeCat(mapped.category >= 0 ? values[mapped.category].trim() : ''),
-            lastExpiryRaw: mapped.lastExpiry >= 0 ? values[mapped.lastExpiry].trim() : '',
-            blsExpiryRaw: mapped.blsExpiry >= 0 ? values[mapped.blsExpiry].trim() : '',
-            licenseType: mapped.licenseType >= 0 ? values[mapped.licenseType].trim() : '',
-            model: mapped.model >= 0 ? values[mapped.model].trim() : '',
-            user: mapped.user >= 0 ? values[mapped.user].trim() : '',
-            customerCluster: mapped.custCluster >= 0 ? values[mapped.custCluster].trim() : '',
-            partnerCluster: mapped.partCluster >= 0 ? values[mapped.partCluster].trim() : '',
-            ownerPartner: mapped.ownerPart >= 0 ? values[mapped.ownerPart].trim() : '',
-            rdpCount: mapped.rdpCount >= 0 ? (parseInt(values[mapped.rdpCount]) || 0) : 0
-        };
-
-        r.rdpUpdate = parseDate(r.rdpUpdateRaw);
-        r.lastActive = parseDate(r.lastActiveRaw);
-        r.installDate = parseDate(r.installDateRaw);
-        r.lastExpiry = parseDate(r.lastExpiryRaw);
-        r.blsExpiry = parseDate(r.blsExpiryRaw);
-
-        // Format raw strings to DD/MMM/YYYY
-        r.rdpUpdateFmt = formatDateDisplay(r.rdpUpdate);
-        r.lastActiveFmt = formatDateDisplay(r.lastActive);
-        r.installDateFmt = formatDateDisplay(r.installDate);
-        r.lastExpiryFmt = formatDateDisplay(r.lastExpiry);
-        r.blsExpiryFmt = formatDateDisplay(r.blsExpiry);
-
-        if (r.compguid) {
-            if (!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
-            globalCompToSubs[r.compguid].add(r.subscriptionId);
-        }
-        if (r.gstin) {
-            if (!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
-            globalGstinToSubs[r.gstin].add(r.subscriptionId);
-        }
-        processed.push(r);
-    }
-    return processed;
 }
 
-function parseDate(str) {
-    if (!str || str === '########' || str.toUpperCase() === 'NULL') return null;
-    let d = new Date(str);
-    if (!isNaN(d.getTime())) return d;
-    
+function parseFastDate(str) {
+    if (!str || str === '########' || str.toUpperCase() === 'NULL') return 0;
     const parts = str.split(/[\/\-\s]/);
     if (parts.length >= 3) {
         let day = parseInt(parts[0], 10);
-        let month = parseInt(parts[1], 10) - 1;
+        let mStr = parts[1].toLowerCase();
+        let month = MONTH_MAP[mStr] !== undefined ? MONTH_MAP[mStr] : parseInt(parts[1], 10) - 1;
         let year = parseInt(parts[2], 10);
         if (year < 100) year += 2000;
         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-            let d2 = new Date(year, month, day);
-            if (!isNaN(d2.getTime())) return d2;
+            return new Date(year, month, day).getTime();
         }
     }
-    return null;
+    const fallback = Date.parse(str);
+    return isNaN(fallback) ? 0 : fallback;
 }
 
-function formatDateDisplay(d) {
-    if (!d || isNaN(d.getTime())) return '';
+function processRowFast(values) {
+    if (values.length < 5) return;
+    const r = {
+        subscriptionId: mappedCols.subId >= 0 ? values[mappedCols.subId].trim() : '',
+        compguid: mappedCols.compguid >= 0 ? values[mappedCols.compguid].trim() : '',
+        gstin: mappedCols.gstin >= 0 ? values[mappedCols.gstin].trim() : '',
+        licenseCategory: normalizeCat(mappedCols.category >= 0 ? values[mappedCols.category] : ''),
+        licenseType: mappedCols.licenseType >= 0 ? values[mappedCols.licenseType].trim() : '',
+        model: mappedCols.model >= 0 ? values[mappedCols.model].trim() : '',
+        user: mappedCols.user >= 0 ? values[mappedCols.user].trim() : '',
+        customerCluster: mappedCols.custCluster >= 0 ? values[mappedCols.custCluster].trim() : '',
+        partnerCluster: mappedCols.partCluster >= 0 ? values[mappedCols.partCluster].trim() : '',
+        ownerPartner: mappedCols.ownerPart >= 0 ? values[mappedCols.ownerPart].trim() : '',
+        rdpCount: mappedCols.rdpCount >= 0 ? (parseInt(values[mappedCols.rdpCount]) || 0) : 0
+    };
+
+    const rdpRaw = mappedCols.rdpUpdate >= 0 ? values[mappedCols.rdpUpdate] : '';
+    const actRaw = mappedCols.lastActive >= 0 ? values[mappedCols.lastActive] : '';
+    const instRaw = mappedCols.installDate >= 0 ? values[mappedCols.installDate] : '';
+    const expRaw = mappedCols.lastExpiry >= 0 ? values[mappedCols.lastExpiry] : '';
+    const blsRaw = mappedCols.blsExpiry >= 0 ? values[mappedCols.blsExpiry] : '';
+
+    r.rdpUpdate = parseFastDate(rdpRaw);
+    r.lastActive = parseFastDate(actRaw);
+    r.installDate = parseFastDate(instRaw);
+    r.lastExpiry = parseFastDate(expRaw);
+    r.blsExpiry = parseFastDate(blsRaw);
+
+    if (r.compguid) {
+        if (!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
+        globalCompToSubs[r.compguid].add(r.subscriptionId);
+    }
+    if (r.gstin) {
+        if (!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
+        globalGstinToSubs[r.gstin].add(r.subscriptionId);
+    }
+    parsedData.push(r);
+}
+
+function formatDateDisplay(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
     const day = String(d.getDate()).padStart(2, '0');
     const mon = MONTH_NAMES[d.getMonth()];
     const year = d.getFullYear();
@@ -524,7 +547,7 @@ function formatLabelNum(value) {
 }
 
 function isExpired(row) {
-    const today = new Date();
+    const today = Date.now();
     if (row.blsExpiry && row.blsExpiry < today) return true;
     if (!row.blsExpiry && row.lastExpiry && row.lastExpiry < today) return true;
     return false;
@@ -532,38 +555,41 @@ function isExpired(row) {
 function isActive(row) { return !isExpired(row); }
 
 function getSubLevelCounts(dataSubset) {
-    const subMap = {};
+    let total = 0, active = 0, expired = 0;
+    const subSetStatus = {};
     dataSubset.forEach(r => {
-        if (!subMap[r.subscriptionId]) subMap[r.subscriptionId] = { active: false, expired: false };
-        if (isActive(r)) subMap[r.subscriptionId].active = true; else subMap[r.subscriptionId].expired = true;
+        if (subSetStatus[r.subscriptionId] === undefined) subSetStatus[r.subscriptionId] = false;
+        if (isActive(r)) subSetStatus[r.subscriptionId] = true;
     });
-    let active = 0, expired = 0;
-    Object.values(subMap).forEach(s => { if (s.active) active++; else expired++; });
-    return { total: Object.keys(subMap).length, active, expired };
+    const keys = Object.keys(subSetStatus);
+    total = keys.length;
+    keys.forEach(k => { if (subSetStatus[k]) active++; else expired++; });
+    return { total, active, expired };
 }
 
-// ===================== COLUMN VALUE EXTRACTORS =====================
-const RAW_KEYS = ['subscriptionId','compguid','gstin','licenseCategory','licenseType','model','user','customerCluster','partnerCluster','ownerPartner','rdpCount','installDateFmt','rdpUpdateFmt','lastActiveFmt','lastExpiryFmt','blsExpiryFmt'];
-const RAW_DATE_COLS = new Set([11,12,13,14,15]); // indices of date columns in RAW_KEYS
+// ===================== EXTRATORS AND HEADERS =====================
+const RAW_KEYS = ['subscriptionId','compguid','gstin','licenseCategory','licenseType','model','user','customerCluster','partnerCluster','ownerPartner','rdpCount','installDate','rdpUpdate','lastActive','lastExpiry','blsExpiry'];
+const RAW_DATE_COLS = new Set([11,12,13,14,15]);
 
 function getRowCellValues(item, type) {
     if (type === 'raw') {
-        return RAW_KEYS.map(k => {
+        return RAW_KEYS.map((k, i) => {
             let v = item[k];
+            if (RAW_DATE_COLS.has(i)) return formatDateDisplay(v);
             return v === undefined || v === null ? '' : String(v);
         });
     } else if (type === 'new_act') {
         const o = item.oldSub, n = item.newSub;
         return [
-            o.subscriptionId||'', o.ownerPartner||'', o.lastExpiryFmt||'', o.lastActiveFmt||'', normalizeModel(o.model),
-            n.subscriptionId||'', n.ownerPartner||'', n.installDateFmt||'', n.lastActiveFmt||'', normalizeModel(n.model),
+            o.subscriptionId||'', o.ownerPartner||'', formatDateDisplay(o.lastExpiry), formatDateDisplay(o.lastActive), normalizeModel(o.model),
+            n.subscriptionId||'', n.ownerPartner||'', formatDateDisplay(n.installDate), formatDateDisplay(n.lastActive), normalizeModel(n.model),
             (item.matchType||'')+': '+(item.matchVal||'')
         ];
     } else if (type === 'rdp_switch') {
         const o = item.oldSub, n = item.newSub;
         return [
-            o.subscriptionId||'', o.ownerPartner||'', o.lastExpiryFmt||'', o.lastActiveFmt||'', normalizeModel(o.model),
-            n.subscriptionId||'', n.ownerPartner||'', n.lastExpiryFmt||'', n.rdpUpdateFmt||'', n.lastActiveFmt||'', normalizeModel(n.model), String(n.rdpCount||0),
+            o.subscriptionId||'', o.ownerPartner||'', formatDateDisplay(o.lastExpiry), formatDateDisplay(o.lastActive), normalizeModel(o.model),
+            n.subscriptionId||'', n.ownerPartner||'', formatDateDisplay(n.lastExpiry), formatDateDisplay(n.rdpUpdate), formatDateDisplay(n.lastActive), normalizeModel(n.model), String(n.rdpCount||0),
             (item.matchType||'')+': '+(item.matchVal||'')
         ];
     }
@@ -582,24 +608,17 @@ function applyAllFilters() {
     const globalSearch = (document.getElementById('globalSearchInput').value || '').toLowerCase().trim();
     const colFilterInputs = document.querySelectorAll('.col-filter-input');
     const colFilters = [];
-    colFilterInputs.forEach((inp, i) => {
-        colFilters.push((inp.value || '').toLowerCase().trim());
-    });
+    colFilterInputs.forEach(inp => colFilters.push((inp.value || '').toLowerCase().trim()));
 
     modalDataFiltered = modalDataOriginal.filter(item => {
         const cells = getRowCellValues(item, modalType);
-        
-        // Column filters
         for (let i = 0; i < colFilters.length; i++) {
             if (colFilters[i] && !cells[i].toLowerCase().includes(colFilters[i])) return false;
         }
-        
-        // Global search
         if (globalSearch) {
             const joined = cells.join(' ').toLowerCase();
             if (!joined.includes(globalSearch)) return false;
         }
-        
         return true;
     });
 
@@ -637,7 +656,7 @@ function loadMoreModalData() {
                 display = highlightText(cell, globalSearch);
             }
             const borderClass = getBorderClass(modalType, ci);
-            html += `<td${borderClass ? ' class="'+borderClass+'"' : ''}>${display}</td>`;
+            html += `<td${borderClass ? ' class="'+borderClass+'"' : ''} title="${escapeHtml(cell)}">${display}</td>`;
         });
         html += '</tr>';
     });
@@ -689,14 +708,12 @@ function sortModalTable(thElement, colIdx) {
         let valA = getSortValue(a, modalType, colIdx);
         let valB = getSortValue(b, modalType, colIdx);
         
-        // Date-aware sort
         if (isDateCol) {
             const dA = parseSortDate(valA);
             const dB = parseSortDate(valB);
             if (dA || dB) return isAsc ? dA - dB : dB - dA;
         }
         
-        // Numeric sort
         let numA = parseFloat(String(valA).replace(/,/g,''));
         let numB = parseFloat(String(valB).replace(/,/g,''));
         if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
@@ -751,20 +768,21 @@ function showMigrationData(title, pairs, type) {
     let headers = [];
     let headerHTML = '';
     
+    // EXACT MATCH TO REQUESTED HEADERS
     if (type === 'new_act') {
-        headers = ['Sub ID','Partner','Expiry Date','Last Active','Model', 'Sub ID','Partner','Install Date','Last Active','Model', 'Match Criteria'];
+        headers = ['Sub Id','Partner','Expiry Date','Last Active','Model', 'Sub Id','Partner','Install Date','Last Active','Model', 'Match Criteria'];
         headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
-            <th colspan="5" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (Activated)</th>
+            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 EXPIRED</th>
+            <th colspan="5" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
             <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
         </tr><tr>` + headers.map((h,i) => `<th class="sortable ${i===4||i===9?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
     } else {
-        headers = ['Sub ID','Partner','Expiry Date','Last Active','Model',
-            'Sub ID','Partner','Expiry Date','RDP Update','Last Active','Model','RDP User',
+        headers = ['Sub Id','Partner','Expiry Date','Last Active','Model',
+            'Sub Id','Partner','Expiry Date','RDP Update','Last Active','Model','RDP User',
             'Match Criteria'];
         headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 OLD SUBSCRIPTION (Expired)</th>
-            <th colspan="7" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION (RDP Switch)</th>
+            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 EXPIRED</th>
+            <th colspan="7" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
             <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
         </tr><tr>` + headers.map((h,i) => `<th class="sortable ${i===4||i===11?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
     }
@@ -892,24 +910,26 @@ function renderCharts() {
 function renderClusterChart(canvasId, field) {
     const clusterMap = {};
     parsedData.forEach(r => {
-        const c = r[field] || 'Unknown';
-        if (!clusterMap[c]) clusterMap[c] = { subIds: new Set(), rdpMap: {} };
-        clusterMap[c].subIds.add(r.subscriptionId);
-        clusterMap[c].rdpMap[r.subscriptionId] = Math.max(clusterMap[c].rdpMap[r.subscriptionId] || 0, r.rdpCount);
+        let key = r[field];
+        if (!key || !key.trim() || key.toUpperCase() === 'NULL' || key === '#N/A') key = 'Unknown';
+        if (!clusterMap[key]) clusterMap[key] = { totalSubIds: new Set(), rdpSubIds: new Set() };
+        clusterMap[key].totalSubIds.add(r.subscriptionId);
+        if (r.rdpCount > 0) clusterMap[key].rdpSubIds.add(r.subscriptionId);
     });
-    const dataArr = Object.keys(clusterMap).map(c => {
-        const total = clusterMap[c].subIds.size;
-        let rdpSubs = 0;
-        Object.values(clusterMap[c].rdpMap).forEach(v => { if (v > 0) rdpSubs++; });
-        return { name: c, subs: total, rdpPct: total > 0 ? parseFloat((rdpSubs/total*100).toFixed(1)) : 0 };
-    }).sort((a,b) => b.subs - a.subs).slice(0, 10);
+
+    const dataArr = Object.keys(clusterMap).map(k => {
+        const totalSubs = clusterMap[k].totalSubIds.size;
+        const rdpSubs = clusterMap[k].rdpSubIds.size;
+        const rdpPct = totalSubs > 0 ? parseFloat(((rdpSubs / totalSubs) * 100).toFixed(1)) : 0;
+        return { name: k, subs: totalSubs, rdpPct: rdpPct };
+    }).sort((a, b) => b.subs - a.subs).slice(0, 10);
 
     chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
         type: 'bar',
         data: {
             labels: dataArr.map(d => d.name),
             datasets: [
-                { label: 'Unique Subs', data: dataArr.map(d=>d.subs), backgroundColor: '#3b82f6', yAxisID: 'y', order: 2 },
+                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: '#3b82f6', yAxisID: 'y', order: 2 },
                 { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
             ]
         },
@@ -925,7 +945,7 @@ function renderClusterChart(canvasId, field) {
                     color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
                     anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
                     align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: (v, c) => c.datasetIndex === 1 ? v+'%' : formatLabelNum(v),
+                    formatter: (v, c) => c.datasetIndex === 1 ? v + '%' : formatLabelNum(v),
                     font: { size: 10, weight: 'bold' }
                 }
             },
@@ -939,15 +959,17 @@ function renderPartnerRdpChart(canvasId) {
     parsedData.forEach(r => {
         const p = r.ownerPartner;
         if (!p || !p.trim() || p.toUpperCase() === 'NULL' || p === '#N/A') return;
-        if (!partnerMap[p]) partnerMap[p] = { subIds: new Set(), rdpMap: {} };
-        partnerMap[p].subIds.add(r.subscriptionId);
-        partnerMap[p].rdpMap[r.subscriptionId] = Math.max(partnerMap[p].rdpMap[r.subscriptionId] || 0, r.rdpCount);
+        if (!partnerMap[p]) partnerMap[p] = { totalSubIds: new Set(), rdpSubIds: new Set() };
+        partnerMap[p].totalSubIds.add(r.subscriptionId);
+        if (r.rdpCount > 0) partnerMap[p].rdpSubIds.add(r.subscriptionId);
     });
+
     const dataArr = Object.keys(partnerMap).map(p => {
-        let totalRdp = 0;
-        Object.values(partnerMap[p].rdpMap).forEach(v => totalRdp += v);
-        return { name: p, subs: partnerMap[p].subIds.size, rdp: totalRdp };
-    }).filter(d => d.rdp > 0).sort((a,b) => b.rdp - a.rdp).slice(0, 15);
+        const totalSubs = partnerMap[p].totalSubIds.size;
+        const rdpSubs = partnerMap[p].rdpSubIds.size;
+        const rdpPct = totalSubs > 0 ? parseFloat(((rdpSubs / totalSubs) * 100).toFixed(1)) : 0;
+        return { name: p, subs: totalSubs, rdpSubs: rdpSubs, rdpPct: rdpPct };
+    }).filter(d => d.rdpSubs > 0).sort((a, b) => b.rdpSubs - a.rdpSubs).slice(0, 15);
 
     chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
         type: 'bar',
@@ -955,7 +977,7 @@ function renderPartnerRdpChart(canvasId) {
             labels: dataArr.map(d => d.name),
             datasets: [
                 { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: 'rgba(16,185,129,0.8)', yAxisID: 'y', order: 2 },
-                { label: 'Total RDP Users', data: dataArr.map(d=>d.rdp), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
+                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
             ]
         },
         options: {
@@ -969,7 +991,7 @@ function renderPartnerRdpChart(canvasId) {
                     color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
                     anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
                     align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: v => formatLabelNum(v),
+                    formatter: (v, c) => c.datasetIndex === 1 ? v + '%' : formatLabelNum(v),
                     font: { size: 10, weight: 'bold' }
                 }
             },
@@ -1060,7 +1082,7 @@ function buildModelMatrix(catData, category) {
 }
 
 function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
-    const today = new Date();
+    const today = Date.now();
     const currentDataByCompguid = {}, currentDataByGstin = {};
     
     catData.forEach(r => {
@@ -1084,6 +1106,7 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
     });
 
     const countedSw = new Set(), countedAct = new Set();
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
 
     Object.keys(otherSubMap).forEach(subId => {
         if (!subId) return;
@@ -1091,19 +1114,18 @@ function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
         const exps = rows.map(r => r.lastExpiry).filter(Boolean);
         if (!exps.length) return;
         
-        const maxExp = new Date(Math.max(...exps.map(d => d.getTime())));
+        const maxExp = Math.max(...exps);
         if (maxExp >= today) return;
 
-        const oldRow = rows.find(r => r.lastExpiry && r.lastExpiry.getTime() === maxExp.getTime()) || rows[0];
+        const oldRow = rows.find(r => r.lastExpiry === maxExp) || rows[0];
 
         const checkMatch = (val, type, map) => {
             if (!val) return;
             const matches = map[val];
             if (!matches) return;
             matches.forEach(cr => {
-                const limit = new Date(maxExp.getTime() - (90 * 24 * 60 * 60 * 1000));
+                const limit = maxExp - ninetyDays;
                 const k = subId + '|' + cr.subscriptionId;
-                
                 const checkDate = cr.rdpUpdate || cr.lastActive || cr.installDate;
 
                 if (!countedSw.has(k) && checkDate && checkDate >= limit) {
