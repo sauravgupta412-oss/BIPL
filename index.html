@@ -3,1212 +3,2142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busy License Analytics Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    
+    <title>Management Dashboard - License Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <style>
-        :root {
-            --bg-primary: #f3f4f6;
-            --bg-secondary: #ffffff;
-            --bg-card: #ffffff;
-            --bg-card-hover: #f9fafb;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --accent-blue: #3b82f6;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-yellow: #f59e0b;
-            --accent-purple: #8b5cf6;
-            --accent-orange: #f97316;
-            --accent-cyan: #06b6d4;
-            --border-color: #e5e7eb;
-            --ca-color: #3b82f6;
-            --ac-color: #8b5cf6;
-            --gp-color: #10b981;
-            --rg-color: #ef4444;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
-        
-        .header { background: var(--bg-secondary); padding: 20px 40px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .header h1 { font-size: 24px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header .subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
-        
-        .upload-section { display: flex; align-items: center; gap: 12px; }
-        .upload-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .upload-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); background: var(--bg-card-hover); }
-        .file-info { color: var(--text-secondary); font-size: 13px; }
-        .container { max-width: 1600px; margin: 0 auto; padding: 30px 40px; }
-
-        .clickable { cursor: pointer; transition: all 0.2s ease; }
-        .clickable:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); transform: translateY(-2px); }
-        .clickable-cell { cursor: pointer; color: var(--accent-blue); text-decoration: underline; font-weight: bold; }
-        .clickable-cell:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
-
-        .summary-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 30px; }
-        .summary-stat { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .summary-stat .value { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-        .summary-stat .label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-        .summary-stat.blue .value { color: var(--accent-blue); }
-        .summary-stat.green .value { color: var(--accent-green); }
-        .summary-stat.red .value { color: var(--accent-red); }
-        .summary-stat.purple .value { color: var(--accent-purple); }
-        .summary-stat.cyan .value { color: var(--accent-cyan); }
-        .summary-stat.yellow .value { color: var(--accent-yellow); }
-
-        .health-indicator { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
-        .health-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-        .health-dot.good { background-color: var(--accent-green); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
-        .health-dot.warning { background-color: var(--accent-yellow); box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
-        .health-dot.bad { background-color: var(--accent-red); box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
-
-        .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-        .category-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .category-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); }
-        .category-card.ca { border-top: 4px solid var(--ca-color); } .category-card.ac { border-top: 4px solid var(--ac-color); } .category-card.gp { border-top: 4px solid var(--gp-color); } .category-card.rg { border-top: 4px solid var(--rg-color); }
-        
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .card-badge { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
-        .ca .card-badge { background: rgba(59, 130, 246, 0.15); color: var(--ca-color); } .ac .card-badge { background: rgba(139, 92, 246, 0.15); color: var(--ac-color); } .gp .card-badge { background: rgba(16, 185, 129, 0.15); color: var(--gp-color); } .rg .card-badge { background: rgba(239, 68, 68, 0.15); color: var(--rg-color); }
-        
-        .xl-box { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 16px; font-size: 11px; }
-        .xl-row { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-primary); }
-        .xl-row span { color: var(--text-secondary); }
-
-        .card-progress { background: var(--bg-primary); height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 16px; border: 1px solid var(--border-color); }
-        .card-progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-        .ca .card-progress-fill { background: var(--ca-color); } .ac .card-progress-fill { background: var(--ac-color); } .gp .card-progress-fill { background: var(--gp-color); } .rg .card-progress-fill { background: var(--rg-color); }
-
-        .card-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-        .card-description { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px; min-height: 36px; }
-        
-        .card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; border-top: 1px solid var(--border-color); padding-top: 16px;}
-        .card-stat-item .stat-value { font-size: 20px; font-weight: 700; }
-        .card-stat-item .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; font-weight: 600; }
-        .card-stat-item:nth-child(1) .stat-value { color: var(--accent-blue); } .card-stat-item:nth-child(2) .stat-value { color: var(--accent-green); } .card-stat-item:nth-child(3) .stat-value { color: var(--accent-red); }
-
-        .charts-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-        .chart-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .chart-container h3 { font-size: 16px; margin-bottom: 16px; color: var(--text-primary); }
-        .chart-wrapper { position: relative; height: 350px; }
-
-        .detail-page { display: none; } .detail-page.active { display: block; }
-        .back-btn { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .back-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-
-        .detail-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 30px; }
-        .detail-stat { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .detail-stat .d-value { font-size: 24px; font-weight: 700; color: var(--accent-blue); }
-        .detail-stat .d-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; font-weight: 600; }
-        .detail-stat:nth-child(2) .d-value { color: var(--accent-green); } .detail-stat:nth-child(3) .d-value { color: var(--accent-red); } .detail-stat:nth-child(4) .d-value { color: var(--accent-purple); } .detail-stat:nth-child(5) .d-value { color: var(--accent-cyan); } .detail-stat:nth-child(6) .d-value { color: var(--accent-orange); } .detail-stat:nth-child(7) .d-value { color: var(--accent-yellow); } 
-        
-        .detail-title { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-        .badge-large { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
-
-        .table-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 30px; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .table-section h3 { margin-bottom: 16px; font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: var(--bg-primary); color: var(--text-secondary); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border-color); position: sticky; top: 0; z-index: 10; }
-        td { padding: 10px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-        tr:hover td { background: rgba(59, 130, 246, 0.05); }
-
-        .overlap-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
-        .overlap-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .overlap-card .overlap-value { font-size: 16px; font-weight: 700; color: var(--accent-orange); }
-        .overlap-card .overlap-label { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
-
-        .welcome-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
-        .welcome-screen h2 { font-size: 28px; margin-bottom: 12px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .welcome-screen p { color: var(--text-secondary); font-size: 15px; max-width: 550px; line-height: 1.6; }
-        .spinner { width: 44px; height: 44px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .number-format { font-variant-numeric: tabular-nums; }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: none; justify-content: center; align-items: center; padding: 15px; backdrop-filter: blur(2px); }
-        .modal-content { 
-            background: var(--bg-secondary); 
-            width: 98vw; 
-            max-width: 1900px;
-            height: 95vh; 
-            border-radius: 12px; 
-            border: 1px solid var(--border-color); 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
-        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); border-radius: 12px 12px 0 0; }
-        .modal-header h2 { font-size: 17px; color: var(--text-primary); }
-        .modal-close { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 20px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .modal-close:hover { background: var(--accent-red); color: white; border-color: var(--accent-red); }
-        
-        .modal-body { overflow: hidden; padding: 0; flex: 1; display: flex; flex-direction: column; }
-        
-        /* GLOBAL SEARCH BAR */
-        .modal-search-bar { padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; background: var(--bg-card-hover); flex-shrink: 0; }
-        .modal-search-bar input { flex: 1; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; background: var(--bg-secondary); color: var(--text-primary); }
-        .modal-search-bar input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-        .modal-search-bar .search-info { font-size: 12px; color: var(--text-secondary); white-space: nowrap; font-weight: 600; }
-        .modal-search-bar .clear-filters-btn { background: var(--accent-red); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap; transition: all 0.2s; }
-        .modal-search-bar .clear-filters-btn:hover { background: #dc2626; }
 
-        /* COLUMN FILTER ROW */
-        .filter-row th { padding: 4px 3px; background: var(--bg-card-hover); position: sticky; top: 29px; z-index: 9; }
-        .filter-row input { width: 100%; min-width: 50px; padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 10px; outline: none; background: var(--bg-secondary); color: var(--text-primary); }
-        .filter-row input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-        
-        .scroll-table { flex: 1; overflow: auto; width: 100%; }
-        .scroll-table table { width: auto; min-width: 100%; }
-        
-        .scroll-table::-webkit-scrollbar { width: 10px; height: 10px; } 
-        .scroll-table::-webkit-scrollbar-track { background: var(--bg-primary); } 
-        .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid var(--bg-primary); }
-        
-        /* OPTIMIZED TABLE COLUMN WIDTHS */
-        .raw-table th, .raw-table td { 
-            white-space: nowrap; 
-            font-size: 11px; 
-            padding: 5px 8px; /* Tighter padding */
-            max-width: 140px; /* Force width reduction */
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 26, 0.97);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        #loadingOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(0, 212, 255, 0.1);
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            font-size: 18px;
+            color: #00d4ff;
+            margin-bottom: 12px;
+        }
+
+        .loader-subtext {
+            font-size: 13px;
+            color: #888;
+        }
+
+        #progressBar {
+            width: 300px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 16px;
             overflow: hidden;
-            text-overflow: ellipsis; 
         }
-        .raw-table th { padding: 8px 8px; }
-        .mig-border-right { border-right: 2px solid #9ca3af !important; }
-        
-        th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 14px; }
-        th.sortable:hover { background-color: #e2e8f0; }
-        th.sortable::after { content: '↕'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 10px; }
-        th.sortable.asc::after { content: '↑'; color: var(--accent-blue); font-weight: bold; }
-        th.sortable.desc::after { content: '↓'; color: var(--accent-blue); font-weight: bold; }
 
-        .highlight-match { background: rgba(245, 158, 11, 0.25); padding: 1px 0; border-radius: 2px; }
+        #progressFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header h1 span {
+            font-size: 13px;
+            font-weight: 400;
+            display: block;
+            background: none;
+            -webkit-text-fill-color: #888;
+            margin-top: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .file-upload-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .upload-btn {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #00d4ff22, #7b2ff722);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            color: #00d4ff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: linear-gradient(135deg, #00d4ff33, #7b2ff733);
+            border-color: #00d4ff;
+            transform: translateY(-1px);
+        }
+
+        .upload-btn input[type="file"] {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-status {
+            font-size: 12px;
+            color: #666;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.06);
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-status.loaded {
+            color: #00e676;
+            border-color: rgba(0, 230, 118, 0.2);
+        }
+
+        .process-btn {
+            padding: 10px 28px;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 0.5px;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+
+        .process-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 30px 40px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Summary Table */
+        .summary-section {
+            margin-bottom: 36px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #00d4ff, #7b2ff7);
+            border-radius: 2px;
+        }
+
+        .summary-table-wrap {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .summary-table thead th {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(123, 47, 247, 0.1));
+            padding: 16px 24px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+        }
+
+        .summary-table tbody td {
+            padding: 18px 24px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            border-right: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .summary-table tbody td:last-child {
+            border-right: none;
+        }
+
+        .summary-table tbody td .label {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .val-active { color: #00e676; }
+        .val-expired { color: #ff5252; }
+        .val-total { color: #00d4ff; }
+        .val-unique { color: #ffab40; }
+
+        /* Category Cards */
+        .cards-section {
+            margin-bottom: 36px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .category-card {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .category-card.ca::before { background: linear-gradient(90deg, #00d4ff, #0091ea); }
+        .category-card.accountant::before { background: linear-gradient(90deg, #7b2ff7, #b388ff); }
+        .category-card.gstp::before { background: linear-gradient(90deg, #00e676, #69f0ae); }
+        .category-card.regular::before { background: linear-gradient(90deg, #ffab40, #ffd740); }
+
+        .category-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .category-card.ca:hover { box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15); }
+        .category-card.accountant:hover { box-shadow: 0 12px 40px rgba(123, 47, 247, 0.15); }
+        .category-card.gstp:hover { box-shadow: 0 12px 40px rgba(0, 230, 118, 0.15); }
+        .category-card.regular:hover { box-shadow: 0 12px 40px rgba(255, 171, 64, 0.15); }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .ca .card-icon { background: rgba(0, 212, 255, 0.15); }
+        .accountant .card-icon { background: rgba(123, 47, 247, 0.15); }
+        .gstp .card-icon { background: rgba(0, 230, 118, 0.15); }
+        .regular .card-icon { background: rgba(255, 171, 64, 0.15); }
+
+        .card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .card-stat {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .card-stat.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card-stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .card-stat-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .card-overlap-section {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .overlap-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+        }
+
+        .overlap-label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .overlap-value {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .overlap-found { color: #ffab40; }
+        .overlap-unique-cat { color: #80cbc4; }
+
+        .click-hint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 14px;
+            font-size: 11px;
+            color: #555;
+            transition: color 0.3s;
+        }
+
+        .category-card:hover .click-hint {
+            color: #00d4ff;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            margin-bottom: 36px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px;
+            min-height: 400px;
+        }
+
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 9000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            width: 95%;
+            max-width: 1400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 32px;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(255, 82, 82, 0.1);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+            color: #ff5252;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 82, 82, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .modal-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .modal-stat-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .modal-stat-value {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .modal-stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .modal-table-section {
+            margin-bottom: 24px;
+        }
+
+        .modal-table-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 12px;
+        }
+
+        .modal-table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .modal-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .modal-table thead th {
+            background: rgba(0, 212, 255, 0.08);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 700;
+            color: #00d4ff;
+            white-space: nowrap;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .modal-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: background 0.2s;
+        }
+
+        .modal-table tbody tr:hover {
+            background: rgba(0, 212, 255, 0.03);
+        }
+
+        .modal-table tbody td {
+            padding: 10px 16px;
+            color: #ccc;
+            white-space: nowrap;
+        }
+
+        .modal-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+
+        .modal-chart-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .modal-chart-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .badge-active {
+            background: rgba(0, 230, 118, 0.15);
+            color: #00e676;
+        }
+
+        .badge-expired {
+            background: rgba(255, 82, 82, 0.15);
+            color: #ff5252;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-sub {
+            font-size: 13px;
+            color: #444;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .main-content { padding: 20px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .modal-content { padding: 20px; }
+            .modal-charts-grid { grid-template-columns: 1fr; }
+        }
+
+        .number-anim {
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Tooltip for overlap explanation */
+        .info-tip {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            color: #888;
+            font-size: 10px;
+            text-align: center;
+            line-height: 16px;
+            cursor: help;
+            margin-left: 4px;
+            position: relative;
+        }
+
+        .info-tip:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a2e;
+            color: #ccc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            z-index: 100;
+            max-width: 280px;
+            white-space: normal;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .pagination-controls button {
+            padding: 6px 14px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 6px;
+            color: #00d4ff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-controls button:hover:not(:disabled) {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .pagination-controls button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .pagination-controls span {
+            font-size: 12px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-<header class="header">
-    <div>
-        <h1>📊 Busy License Analytics Dashboard</h1>
-        <div class="subtitle">Comprehensive license tracking, cross-category analysis &amp; renewal intelligence</div>
+<!-- Loading Overlay -->
+<div id="loadingOverlay">
+    <div class="loader-spinner"></div>
+    <div class="loader-text" id="loadingText">Upload CSV Files to Begin</div>
+    <div class="loader-subtext" id="loadingSubtext">Support for 15L+ entries with optimized processing</div>
+    <div id="progressBar" style="display:none;">
+        <div id="progressFill"></div>
     </div>
-    <div class="upload-section">
-        <input type="file" id="csvFile" accept=".csv,.gz" style="display:none" onchange="handleFile(event)">
-        <button class="upload-btn" onclick="document.getElementById('csvFile').click()">Manual Upload</button>
-        <span class="file-info" id="fileInfo">Initializing...</span>
+</div>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-left">
+        <div class="header-icon">📊</div>
+        <h1>
+            License Analytics Dashboard
+            <span>Management Presentation • Real-time Data Processing</span>
+        </h1>
+    </div>
+    <div class="header-right">
+        <div class="file-upload-area">
+            <label class="upload-btn">
+                📁 CSV File 1
+                <input type="file" id="file1" accept=".csv" onchange="handleFileSelect(1, this)">
+            </label>
+            <span class="file-status" id="file1Status">No file selected</span>
+
+            <label class="upload-btn">
+                📁 CSV File 2
+                <input type="file" id="file2" accept=".csv" onchange="handleFileSelect(2, this)">
+            </label>
+            <span class="file-status" id="file2Status">No file selected</span>
+
+            <button class="process-btn" id="processBtn" onclick="processFiles()" disabled>
+                ⚡ Process Data
+            </button>
+        </div>
     </div>
 </header>
 
-<div class="container">
-    <div id="welcomeScreen" class="welcome-screen">
-        <div class="spinner" id="spinner"></div>
-        <h2 id="loadingTitle">Starting Data Engine...</h2>
-        <p id="loadingDesc">Initiating stream parser for ultra-fast load.</p>
+<!-- Main Content -->
+<div class="main-content" id="mainContent">
+    <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📁</div>
+        <div class="empty-state-text">Upload CSV Files to Generate Dashboard</div>
+        <div class="empty-state-sub">Upload one or two CSV files with subscription data. The dashboard will process and visualize all metrics automatically.</div>
     </div>
 
-    <div id="landingPage" class="landing-page" style="display:none;">
-        <div class="summary-bar" id="summaryBar"></div>
-        <div class="category-grid" id="categoryGrid"></div>
-        
+    <!-- Dashboard Content (hidden initially) -->
+    <div id="dashboardContent" style="display:none;">
+
+        <!-- Top Summary Table -->
+        <div class="summary-section">
+            <div class="section-title">Data Summary Overview</div>
+            <div class="summary-table-wrap">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Total Subscriptions</th>
+                            <th>Active Licenses</th>
+                            <th>Expired Licenses</th>
+                            <th>Unique CompGUID</th>
+                            <th>Unique GSTIN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="val-total" id="summTotalSubs">-</span>
+                            </td>
+                            <td>
+                                <span class="val-active" id="summActiveLic">-</span>
+                            </td>
+                            <td>
+                                <span class="val-expired" id="summExpiredLic">-</span>
+                            </td>
+                            <td>
+                                <span class="val-unique" id="summUniqueComp">-</span>
+                            </td>
+                            <td>
+                                <span class="val-unique" id="summUniqueGSTIN">-</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Category Cards -->
+        <div class="cards-section">
+            <div class="section-title">Customer Category Breakdown</div>
+            <div class="cards-grid">
+                <!-- CA Card -->
+                <div class="category-card ca" onclick="openCategoryModal('CA')">
+                    <div class="card-header">
+                        <div class="card-title">CA Licenses</div>
+                        <div class="card-icon">🏛️</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="card-stat full-width">
+                            <div class="card-stat-value val-total" id="caTotalSubs">-</div>
+                            <div class="card-stat-label">Total Subscriptions</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-active" id="caActiveLic">-</div>
+                            <div class="card-stat-label">Active</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-expired" id="caExpiredLic">-</div>
+                            <div class="card-stat-label">Expired</div>
+                        </div>
+                    </div>
+                    <div class="card-overlap-section">
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID in CA <span class="info-tip" data-tip="Total unique CompGUIDs in CA category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="caCompTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID Overlap <span class="info-tip" data-tip="CompGUIDs found in CA that also appear under a different subscription with a non-CA category">?</span></span>
+                            <span class="overlap-value overlap-found" id="caCompOverlap">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN in CA <span class="info-tip" data-tip="Total unique GSTINs in CA category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="caGstinTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN Overlap <span class="info-tip" data-tip="GSTINs found in CA that also appear under a different subscription with a non-CA category">?</span></span>
+                            <span class="overlap-value overlap-found" id="caGstinOverlap">-</span>
+                        </div>
+                    </div>
+                    <div class="click-hint">🔍 Click to view detailed bifurcation</div>
+                </div>
+
+                <!-- Accountant Card -->
+                <div class="category-card accountant" onclick="openCategoryModal('Accountant')">
+                    <div class="card-header">
+                        <div class="card-title">Accountant Licenses</div>
+                        <div class="card-icon">📋</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="card-stat full-width">
+                            <div class="card-stat-value val-total" id="accTotalSubs">-</div>
+                            <div class="card-stat-label">Total Subscriptions</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-active" id="accActiveLic">-</div>
+                            <div class="card-stat-label">Active</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-expired" id="accExpiredLic">-</div>
+                            <div class="card-stat-label">Expired</div>
+                        </div>
+                    </div>
+                    <div class="card-overlap-section">
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID in Accountant <span class="info-tip" data-tip="Total unique CompGUIDs in Accountant category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="accCompTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID Overlap <span class="info-tip" data-tip="CompGUIDs found in Accountant that also appear under a different subscription with a non-Accountant category">?</span></span>
+                            <span class="overlap-value overlap-found" id="accCompOverlap">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN in Accountant <span class="info-tip" data-tip="Total unique GSTINs in Accountant category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="accGstinTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN Overlap <span class="info-tip" data-tip="GSTINs found in Accountant that also appear under a different subscription with a non-Accountant category">?</span></span>
+                            <span class="overlap-value overlap-found" id="accGstinOverlap">-</span>
+                        </div>
+                    </div>
+                    <div class="click-hint">🔍 Click to view detailed bifurcation</div>
+                </div>
+
+                <!-- GSTP Card -->
+                <div class="category-card gstp" onclick="openCategoryModal('GSTP')">
+                    <div class="card-header">
+                        <div class="card-title">GSTP Licenses</div>
+                        <div class="card-icon">🔐</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="card-stat full-width">
+                            <div class="card-stat-value val-total" id="gstpTotalSubs">-</div>
+                            <div class="card-stat-label">Total Subscriptions</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-active" id="gstpActiveLic">-</div>
+                            <div class="card-stat-label">Active</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-expired" id="gstpExpiredLic">-</div>
+                            <div class="card-stat-label">Expired</div>
+                        </div>
+                    </div>
+                    <div class="card-overlap-section">
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID in GSTP <span class="info-tip" data-tip="Total unique CompGUIDs in GSTP category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="gstpCompTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID Overlap <span class="info-tip" data-tip="CompGUIDs found in GSTP that also appear under a different subscription with a non-GSTP category">?</span></span>
+                            <span class="overlap-value overlap-found" id="gstpCompOverlap">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN in GSTP <span class="info-tip" data-tip="Total unique GSTINs in GSTP category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="gstpGstinTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN Overlap <span class="info-tip" data-tip="GSTINs found in GSTP that also appear under a different subscription with a non-GSTP category">?</span></span>
+                            <span class="overlap-value overlap-found" id="gstpGstinOverlap">-</span>
+                        </div>
+                    </div>
+                    <div class="click-hint">🔍 Click to view detailed bifurcation</div>
+                </div>
+
+                <!-- Regular Card -->
+                <div class="category-card regular" onclick="openCategoryModal('Regular')">
+                    <div class="card-header">
+                        <div class="card-title">Regular Licenses</div>
+                        <div class="card-icon">📦</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="card-stat full-width">
+                            <div class="card-stat-value val-total" id="regTotalSubs">-</div>
+                            <div class="card-stat-label">Total Subscriptions</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-active" id="regActiveLic">-</div>
+                            <div class="card-stat-label">Active</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-value val-expired" id="regExpiredLic">-</div>
+                            <div class="card-stat-label">Expired</div>
+                        </div>
+                    </div>
+                    <div class="card-overlap-section">
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID in Regular <span class="info-tip" data-tip="Total unique CompGUIDs in Regular category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="regCompTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">CompGUID Overlap <span class="info-tip" data-tip="CompGUIDs found in Regular that also appear under a different subscription with a non-Regular category">?</span></span>
+                            <span class="overlap-value overlap-found" id="regCompOverlap">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN in Regular <span class="info-tip" data-tip="Total unique GSTINs in Regular category">?</span></span>
+                            <span class="overlap-value overlap-unique-cat" id="regGstinTotal">-</span>
+                        </div>
+                        <div class="overlap-row">
+                            <span class="overlap-label">GSTIN Overlap <span class="info-tip" data-tip="GSTINs found in Regular that also appear under a different subscription with a non-Regular category">?</span></span>
+                            <span class="overlap-value overlap-found" id="regGstinOverlap">-</span>
+                        </div>
+                    </div>
+                    <div class="click-hint">🔍 Click to view detailed bifurcation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
         <div class="charts-section">
-            <div class="chart-container">
-                <h3>📊 Customer Cluster Distribution × RDP Adoption % (Top 10)</h3>
-                <div class="chart-wrapper"><canvas id="customerClusterChart"></canvas></div>
-            </div>
-            <div class="chart-container">
-                <h3>📊 Partner Cluster Distribution × RDP Adoption % (Top 10)</h3>
-                <div class="chart-wrapper"><canvas id="partnerClusterChart"></canvas></div>
-            </div>
-            
-            <div class="chart-container" style="grid-column: 1 / -1;">
-                <h3>📊 Top 15 Partners by RDP Subscriptions (Total Subscriptions vs RDP Adoption %)</h3>
-                <div class="chart-wrapper"><canvas id="partnerRdpChart"></canvas></div>
+            <div class="section-title">RDP Adoption Analytics</div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">Customer Cluster Distribution × RDP Adoption % (Top 10)</div>
+                    <div class="chart-container">
+                        <canvas id="chartCustomerCluster"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Partner Cluster Distribution × RDP Adoption % (Top 10)</div>
+                    <div class="chart-container">
+                        <canvas id="chartPartnerCluster"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card full-width">
+                    <div class="chart-title">Top 15 Partners by RDP Subscriptions (Total Subscriptions vs RDP Adoption %)</div>
+                    <div class="chart-container">
+                        <canvas id="chartTopPartners"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
-    <div id="detailPage" class="detail-page"></div>
 </div>
 
-<div class="modal-overlay" id="rawModal">
+<!-- Category Detail Modal -->
+<div class="modal-overlay" id="categoryModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="modalTitle">Raw Data Viewer</h2>
-            <button class="modal-close" onclick="closeRawData()">&times;</button>
+            <div class="modal-title" id="modalTitle">Category Details</div>
+            <button class="modal-close" onclick="closeCategoryModal()">✕</button>
         </div>
-        <div class="modal-search-bar">
-            <span style="font-size:16px;">🔍</span>
-            <input type="text" id="globalSearchInput" placeholder="Global search across all columns..." oninput="applyAllFilters()">
-            <span class="search-info" id="filterInfo">Ready</span>
-            <button class="clear-filters-btn" onclick="clearAllFilters()">✕ Clear All Filters</button>
+
+        <!-- Modal Summary Stats -->
+        <div class="modal-stats-grid" id="modalStatsGrid"></div>
+
+        <!-- Subscription Bifurcation Table -->
+        <div class="modal-table-section">
+            <div class="modal-table-title">📋 Subscription Bifurcation (License Type × Model × User)</div>
+            <div class="modal-table-wrap">
+                <table class="modal-table" id="modalBifurcationTable">
+                    <thead>
+                        <tr>
+                            <th>License Type</th>
+                            <th>Model</th>
+                            <th>User Type</th>
+                            <th>Total Subs</th>
+                            <th>Active</th>
+                            <th>Expired</th>
+                            <th>Unique CompGUID</th>
+                            <th>Unique GSTIN</th>
+                            <th>Avg Renewal Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalBifurcationBody"></tbody>
+                </table>
+            </div>
         </div>
-        <div id="modalWarning" style="padding: 8px; background: rgba(245,158,11,0.1); color: var(--accent-yellow); text-align:center; font-size:12px; border-bottom: 1px solid var(--border-color); font-weight:600; display:none;"></div>
-        <div class="scroll-table" id="modalScrollArea">
-            <table class="raw-table">
-                <thead id="modalThead"></thead>
-                <tbody id="modalTableBody"></tbody>
-            </table>
+
+        <!-- Overlap Detail Tables -->
+        <div class="modal-table-section">
+            <div class="modal-table-title">🔗 CompGUID Overlap Details — found in this category AND in other categories with different Subscription IDs</div>
+            <div class="modal-table-wrap" style="max-height:300px; overflow-y:auto;">
+                <table class="modal-table" id="modalCompOverlapTable">
+                    <thead>
+                        <tr>
+                            <th>CompGUID</th>
+                            <th>Current Category Sub IDs</th>
+                            <th>Other Category</th>
+                            <th>Other Sub IDs</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalCompOverlapBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination-controls" id="compOverlapPagination"></div>
+        </div>
+
+        <div class="modal-table-section">
+            <div class="modal-table-title">🔗 GSTIN Overlap Details — found in this category AND in other categories with different Subscription IDs</div>
+            <div class="modal-table-wrap" style="max-height:300px; overflow-y:auto;">
+                <table class="modal-table" id="modalGstinOverlapTable">
+                    <thead>
+                        <tr>
+                            <th>GSTIN</th>
+                            <th>Current Category Sub IDs</th>
+                            <th>Other Category</th>
+                            <th>Other Sub IDs</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalGstinOverlapBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination-controls" id="gstinOverlapPagination"></div>
+        </div>
+
+        <!-- Modal Charts -->
+        <div class="modal-charts-grid">
+            <div class="modal-chart-card">
+                <div class="modal-chart-title">Customer Cluster Distribution × RDP Adoption % (Top 10)</div>
+                <div class="chart-container">
+                    <canvas id="modalChartCustCluster"></canvas>
+                </div>
+            </div>
+            <div class="modal-chart-card">
+                <div class="modal-chart-title">Partner Cluster Distribution × RDP Adoption % (Top 10)</div>
+                <div class="chart-container">
+                    <canvas id="modalChartPartCluster"></canvas>
+                </div>
+            </div>
+            <div class="modal-chart-card" style="grid-column: 1 / -1;">
+                <div class="modal-chart-title">Top 15 Partners by RDP Subscriptions</div>
+                <div class="chart-container">
+                    <canvas id="modalChartTopPartners"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-Chart.register(ChartDataLabels);
-Chart.defaults.color = '#6b7280';
+// ========== GLOBAL STATE ==========
+let file1Data = null;
+let file2Data = null;
+let allData = []; // combined parsed data
+let computedResults = null;
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTH_MAP = {'jan':0,'feb':1,'mar':2,'apr':3,'may':4,'jun':5,'jul':6,'aug':7,'sep':8,'oct':9,'nov':10,'dec':11};
+const CUTOFF_DATE = new Date(2026, 7, 31); // 31 Aug 2026 (month is 0-indexed)
 
-let parsedData = [];
-let globalCompToSubs = {};
-let globalGstinToSubs = {};
-let mappedCols = {};
-window.currentMigrationPairs = { switch: [], act: [] };
-
-let modalDataOriginal = [];   
-let modalDataFiltered = [];   
-let modalType = '';
-let modalIndex = 0;
-const CHUNK_SIZE = 150;
-
-const CATEGORIES = ['CA', 'Accountant', 'GSTP', 'Regular'];
-const CAT_META = {
-    CA: { code: 'CA', cls: 'ca', color: '#3b82f6', title: 'CA Overview', desc: 'Chartered Accountant workspace licensing and performance activity.' },
-    Accountant: { code: 'AC', cls: 'ac', color: '#8b5cf6', title: 'Accountant Overview', desc: 'Corporate financial accountants and bookkeeping setups.' },
-    GSTP: { code: 'GP', cls: 'gp', color: '#10b981', title: 'GSTP Overview', desc: 'Tax practitioner portal system mappings and telemetry.' },
-    Regular: { code: 'RG', cls: 'rg', color: '#ef4444', title: 'Regular Overview', desc: 'Standard retail packages and base activations.' }
-};
-
-let chartInstances = {};
-
-document.addEventListener("DOMContentLoaded", function() {
-    autoLoadData();
-    document.addEventListener('keydown', e => { if (e.key === "Escape") closeRawData(); });
-    document.getElementById('modalScrollArea').addEventListener('scroll', function() {
-        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 80) loadMoreModalData();
-    });
-});
-
-// ================= STREAMING ENGINE =================
-async function autoLoadData() {
-    const loadingTitle = document.getElementById('loadingTitle');
-    const loadingDesc = document.getElementById('loadingDesc');
-    const spinner = document.getElementById('spinner');
-
-    try {
-        const gzResponse = await fetch('data.csv.gz?v=' + Date.now());
-        if (gzResponse.ok) {
-            loadingTitle.innerText = 'Downloading & Processing (GZ)...';
-            const ds = new DecompressionStream('gzip');
-            await streamProcessCSV(gzResponse.body.pipeThrough(ds));
-            return;
-        }
-    } catch (e) { console.warn("gz fetch failed:", e); }
-
-    try {
-        const csvResponse = await fetch('data.csv?v=' + Date.now());
-        if (csvResponse.ok) {
-            loadingTitle.innerText = 'Downloading & Processing...';
-            await streamProcessCSV(csvResponse.body);
-            return;
-        }
-    } catch (e) { console.warn("csv fetch failed:", e); }
-
-    spinner.style.display = 'none';
-    loadingTitle.innerText = 'Data File Not Found';
-    loadingTitle.style.color = 'var(--accent-yellow)';
-    loadingDesc.innerHTML = 'Please check GitHub or use the <b>Manual Upload</b> button.';
-}
-
-function handleFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    document.getElementById('welcomeScreen').style.display = 'flex';
-    document.getElementById('landingPage').style.display = 'none';
-    document.getElementById('loadingTitle').innerText = 'Processing File...';
-    
-    if (file.name.endsWith('.gz')) {
-        const ds = new DecompressionStream('gzip');
-        streamProcessCSV(file.stream().pipeThrough(ds));
+// ========== FILE HANDLING ==========
+function handleFileSelect(num, input) {
+    const file = input.files[0];
+    const statusEl = document.getElementById(`file${num}Status`);
+    if (file) {
+        statusEl.textContent = file.name;
+        statusEl.classList.add('loaded');
+        if (num === 1) file1Data = file;
+        else file2Data = file;
     } else {
-        streamProcessCSV(file.stream());
+        statusEl.textContent = 'No file selected';
+        statusEl.classList.remove('loaded');
+        if (num === 1) file1Data = null;
+        else file2Data = null;
     }
+    document.getElementById('processBtn').disabled = !(file1Data || file2Data);
 }
 
-async function streamProcessCSV(readableStream) {
-    const reader = readableStream.pipeThrough(new TextDecoderStream()).getReader();
-    let buffer = '';
-    let isFirstLine = true;
-    let count = 0;
-    
-    parsedData = [];
-    globalCompToSubs = {};
-    globalGstinToSubs = {};
-    const loadingDesc = document.getElementById('loadingDesc');
+// ========== CSV PARSING ==========
+function parseCSV(text) {
+    const lines = text.split('\n');
+    if (lines.length < 2) return [];
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += value;
-        
-        let newlineIdx;
-        while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
-            let line = buffer.slice(0, newlineIdx).trim();
-            buffer = buffer.slice(newlineIdx + 1);
-            if (!line) continue;
-            
-            if (isFirstLine) {
-                setupColumnMapping(fastParseLine(line));
-                isFirstLine = false;
-            } else {
-                processRowFast(fastParseLine(line));
-                count++;
-                if (count % 35000 === 0) {
-                    loadingDesc.innerText = `Processed ${count.toLocaleString()} rows...`;
-                }
-            }
+    // Parse header
+    const headerLine = lines[0].replace(/\r$/, '');
+    const headers = parseCSVLine(headerLine);
+
+    // Normalize headers
+    const headerMap = {};
+    headers.forEach((h, i) => {
+        const normalized = h.trim().toLowerCase().replace(/[\s_]+/g, '_');
+        headerMap[normalized] = i;
+    });
+
+    // Find column indices
+    const colMap = {
+        subscription_number: findCol(headerMap, ['subscription_number', 'sub_number', 'subscription_id', 'sub_id']),
+        compguid: findCol(headerMap, ['compguid', 'comp_guid', 'company_guid']),
+        gstin: findCol(headerMap, ['gstin', 'gst_in', 'gst_number']),
+        rdp_switch_date: findCol(headerMap, ['rdp_switch_date', 'rdp_date']),
+        activation_date: findCol(headerMap, ['activation_date', 'activation']),
+        customer_category: findCol(headerMap, ['customer_category', 'category', 'cust_category']),
+        bls_expiry: findCol(headerMap, ['bls_expiry', 'expiry', 'expiry_date', 'bls_expiry_date']),
+        last_active: findCol(headerMap, ['last_active', 'lastactive']),
+        renewal_count: findCol(headerMap, ['renewal_count', 'renewals', 'renewal']),
+        license_type: findCol(headerMap, ['license_type', 'licensetype', 'lic_type']),
+        model: findCol(headerMap, ['model']),
+        user: findCol(headerMap, ['user', 'user_type']),
+        owner_partner: findCol(headerMap, ['owner_partner', 'partner', 'ownerpartner']),
+        customer_cluster: findCol(headerMap, ['customer_cluster', 'cust_cluster', 'customercluster']),
+        partner_cluster: findCol(headerMap, ['partner_cluster', 'partnercluster', 'part_cluster']),
+        rdp_count: findCol(headerMap, ['rdp_count', 'rdpcount', 'rdp'])
+    };
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].replace(/\r$/, '').trim();
+        if (!line) continue;
+
+        const vals = parseCSVLine(line);
+        if (vals.length < 3) continue;
+
+        const row = {
+            subscription_number: getVal(vals, colMap.subscription_number),
+            compguid: getVal(vals, colMap.compguid),
+            gstin: getVal(vals, colMap.gstin),
+            customer_category: getVal(vals, colMap.customer_category),
+            bls_expiry: getVal(vals, colMap.bls_expiry),
+            renewal_count: parseFloat(getVal(vals, colMap.renewal_count)) || 0,
+            license_type: getVal(vals, colMap.license_type),
+            model: getVal(vals, colMap.model),
+            user: getVal(vals, colMap.user),
+            owner_partner: getVal(vals, colMap.owner_partner),
+            customer_cluster: getVal(vals, colMap.customer_cluster),
+            partner_cluster: getVal(vals, colMap.partner_cluster),
+            rdp_count: parseFloat(getVal(vals, colMap.rdp_count)) || 0
+        };
+
+        if (row.subscription_number) {
+            rows.push(row);
         }
     }
-    
-    if (buffer.trim() && !isFirstLine) {
-        processRowFast(fastParseLine(buffer.trim()));
-    }
-    
-    document.getElementById('fileInfo').textContent = `✅ Ready (${parsedData.length.toLocaleString()} rows)`;
-    document.getElementById('welcomeScreen').style.display = 'none';
-    showLandingPage();
+
+    return rows;
 }
 
-function fastParseLine(line) {
-    if (line.indexOf('"') === -1) return line.split(',');
+function parseCSVLine(line) {
     const result = [];
     let current = '';
     let inQuotes = false;
+
     for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-            if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
-            else inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-            result.push(current); current = '';
-        } else current += char;
+        const ch = line[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += ch;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+            } else if (ch === ',' || ch === '\t') {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
     }
-    result.push(current);
+    result.push(current.trim());
     return result;
 }
 
-function setupColumnMapping(rawHeaders) {
-    let headMap = {};
-    rawHeaders.forEach((h, i) => headMap[h.trim().replace(/^\uFEFF/, '').toLowerCase().replace(/[\s_\-]/g, '')] = i);
-    
-    const getIdx = names => {
-        for (let n of names) {
-            let key = n.toLowerCase().replace(/[\s_\-]/g, '');
-            if (headMap[key] !== undefined) return headMap[key];
-        }
-        return -1;
-    };
-    
-    mappedCols = {
-        subId: getIdx(['subscriptionid', 'subid']),
-        compguid: getIdx(['compguid']),
-        gstin: getIdx(['gstin']),
-        rdpUpdate: getIdx(['rdpupdate', 'lastupdateddate', 'lastupdated']),
-        installDate: getIdx(['installdate']),
-        category: getIdx(['licensecategory', 'category']),
-        lastExpiry: getIdx(['lastexpiry', 'last_expiry', 'expiry']),
-        blsExpiry: getIdx(['blsexpiry']),
-        licenseType: getIdx(['licensetype', 'license_type']),
-        model: getIdx(['model']),
-        user: getIdx(['user']),
-        custCluster: getIdx(['customercluster']),
-        partCluster: getIdx(['partnercluster']),
-        ownerPart: getIdx(['ownerpartner']),
-        rdpCount: getIdx(['rdpcount']),
-        lastActive: getIdx(['lastactive', 'lastuseddate', 'lastused'])
-    };
+function findCol(headerMap, candidates) {
+    for (const c of candidates) {
+        if (headerMap[c] !== undefined) return headerMap[c];
+    }
+    return -1;
 }
 
-function parseFastDate(str) {
-    if (!str || str === '########' || str.toUpperCase() === 'NULL') return 0;
-    const parts = str.split(/[\/\-\s]/);
-    if (parts.length >= 3) {
-        let day = parseInt(parts[0], 10);
-        let mStr = parts[1].toLowerCase();
-        let month = MONTH_MAP[mStr] !== undefined ? MONTH_MAP[mStr] : parseInt(parts[1], 10) - 1;
-        let year = parseInt(parts[2], 10);
+function getVal(vals, idx) {
+    if (idx < 0 || idx >= vals.length) return '';
+    return vals[idx].trim();
+}
+
+function parseDate(str) {
+    if (!str) return null;
+    str = str.trim();
+
+    // Try various formats
+    // MM/DD/YYYY or M/D/YYYY
+    let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+        return new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]));
+    }
+
+    // DD-Mon-YY or D-Mon-YY (e.g., 4-Jan-27)
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    m = str.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+    if (m) {
+        let year = parseInt(m[3]);
         if (year < 100) year += 2000;
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-            return new Date(year, month, day).getTime();
+        const mon = months[m[2].toLowerCase()];
+        if (mon !== undefined) {
+            return new Date(year, mon, parseInt(m[1]));
         }
     }
-    const fallback = Date.parse(str);
-    return isNaN(fallback) ? 0 : fallback;
+
+    // YYYY-MM-DD
+    m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) {
+        return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    }
+
+    // Fallback
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
 }
 
-function processRowFast(values) {
-    if (values.length < 5) return;
-    const r = {
-        subscriptionId: mappedCols.subId >= 0 ? values[mappedCols.subId].trim() : '',
-        compguid: mappedCols.compguid >= 0 ? values[mappedCols.compguid].trim() : '',
-        gstin: mappedCols.gstin >= 0 ? values[mappedCols.gstin].trim() : '',
-        licenseCategory: normalizeCat(mappedCols.category >= 0 ? values[mappedCols.category] : ''),
-        licenseType: mappedCols.licenseType >= 0 ? values[mappedCols.licenseType].trim() : '',
-        model: mappedCols.model >= 0 ? values[mappedCols.model].trim() : '',
-        user: mappedCols.user >= 0 ? values[mappedCols.user].trim() : '',
-        customerCluster: mappedCols.custCluster >= 0 ? values[mappedCols.custCluster].trim() : '',
-        partnerCluster: mappedCols.partCluster >= 0 ? values[mappedCols.partCluster].trim() : '',
-        ownerPartner: mappedCols.ownerPart >= 0 ? values[mappedCols.ownerPart].trim() : '',
-        rdpCount: mappedCols.rdpCount >= 0 ? (parseInt(values[mappedCols.rdpCount]) || 0) : 0
+// ========== MAIN PROCESSING ==========
+async function processFiles() {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    const loadingSubtext = document.getElementById('loadingSubtext');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+
+    overlay.classList.remove('hidden');
+    progressBar.style.display = 'block';
+    progressFill.style.width = '0%';
+    loadingText.textContent = 'Reading CSV files...';
+    loadingSubtext.textContent = 'Parsing raw data';
+
+    allData = [];
+
+    try {
+        if (file1Data) {
+            loadingText.textContent = 'Parsing File 1...';
+            const text1 = await readFile(file1Data);
+            progressFill.style.width = '20%';
+            const rows1 = parseCSV(text1);
+            allData = allData.concat(rows1);
+            loadingSubtext.textContent = `File 1: ${rows1.length.toLocaleString()} rows parsed`;
+            progressFill.style.width = '35%';
+        }
+
+        if (file2Data) {
+            loadingText.textContent = 'Parsing File 2...';
+            const text2 = await readFile(file2Data);
+            progressFill.style.width = '50%';
+            const rows2 = parseCSV(text2);
+            allData = allData.concat(rows2);
+            loadingSubtext.textContent = `File 2: ${rows2.length.toLocaleString()} rows parsed. Total: ${allData.length.toLocaleString()}`;
+            progressFill.style.width = '65%';
+        }
+
+        loadingText.textContent = 'Computing metrics...';
+        loadingSubtext.textContent = `Processing ${allData.length.toLocaleString()} total entries`;
+
+        // Yield to UI
+        await sleep(50);
+        progressFill.style.width = '70%';
+
+        computedResults = computeAllMetrics(allData);
+        progressFill.style.width = '90%';
+
+        await sleep(50);
+        loadingText.textContent = 'Rendering dashboard...';
+
+        renderDashboard(computedResults);
+        progressFill.style.width = '100%';
+
+        await sleep(300);
+
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+        overlay.classList.add('hidden');
+
+    } catch (err) {
+        loadingText.textContent = 'Error processing files';
+        loadingSubtext.textContent = err.message;
+        console.error(err);
+    }
+}
+
+function readFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+    });
+}
+
+function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+// ========== COMPUTE ALL METRICS ==========
+function computeAllMetrics(data) {
+    const result = {};
+
+    // --- Build lookup structures ---
+    // For each subscription, we need the BLS Expiry date and category.
+    // A subscription can have many rows (different CompGUID/GSTIN entries).
+    // We take the expiry from the subscription level (same across rows for same sub).
+    const subInfo = new Map(); // subId -> { category, expiryDate, rdpCount, licenseType, model, user, ownerPartner, customerCluster, partnerCluster, renewalCount }
+    const allCompGUIDs = new Set();
+    const allGSTINs = new Set();
+
+    // Per-subscription sets of CompGUIDs and GSTINs
+    const subCompGUIDs = new Map(); // subId -> Set of compguids
+    const subGSTINs = new Map(); // subId -> Set of gstins
+
+    // CompGUID -> Set of {subId, category}
+    const compguidSubs = new Map();
+    // GSTIN -> Set of {subId, category}
+    const gstinSubs = new Map();
+
+    // Category-level data
+    const categories = ['CA', 'Accountant', 'GSTP', 'Regular'];
+    const catData = {};
+    categories.forEach(c => {
+        catData[c] = {
+            subs: new Set(),
+            compguids: new Set(),
+            gstins: new Set(),
+            rows: []
+        };
+    });
+
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const subId = row.subscription_number;
+        const compguid = row.compguid;
+        const gstin = row.gstin;
+        const category = row.customer_category;
+        const expiryDate = parseDate(row.bls_expiry);
+        const rdpCount = row.rdp_count;
+
+        if (!subInfo.has(subId)) {
+            subInfo.set(subId, {
+                category: category,
+                expiryDate: expiryDate,
+                rdpCount: rdpCount,
+                licenseType: row.license_type,
+                model: row.model,
+                user: row.user,
+                ownerPartner: row.owner_partner,
+                customerCluster: row.customer_cluster,
+                partnerCluster: row.partner_cluster,
+                renewalCount: row.renewal_count
+            });
+        }
+
+        if (compguid) {
+            allCompGUIDs.add(compguid);
+            if (!compguidSubs.has(compguid)) compguidSubs.set(compguid, []);
+            compguidSubs.get(compguid).push({ subId, category });
+        }
+
+        if (gstin) {
+            allGSTINs.add(gstin);
+            if (!gstinSubs.has(gstin)) gstinSubs.set(gstin, []);
+            gstinSubs.get(gstin).push({ subId, category });
+        }
+
+        // Track per-sub compguids/gstins
+        if (!subCompGUIDs.has(subId)) subCompGUIDs.set(subId, new Set());
+        if (compguid) subCompGUIDs.get(subId).add(compguid);
+        if (!subGSTINs.has(subId)) subGSTINs.set(subId, new Set());
+        if (gstin) subGSTINs.get(subId).add(gstin);
+
+        // Category level
+        const catNorm = normalizeCat(category);
+        if (catData[catNorm]) {
+            catData[catNorm].subs.add(subId);
+            if (compguid) catData[catNorm].compguids.add(compguid);
+            if (gstin) catData[catNorm].gstins.add(gstin);
+            catData[catNorm].rows.push(row);
+        }
+    }
+
+    // --- Top Summary ---
+    const totalSubs = subInfo.size;
+    let activeLic = 0, expiredLic = 0;
+    subInfo.forEach((info) => {
+        if (info.expiryDate && info.expiryDate > CUTOFF_DATE) {
+            activeLic++;
+        } else {
+            expiredLic++;
+        }
+    });
+
+    result.summary = {
+        totalSubs,
+        activeLic,
+        expiredLic,
+        uniqueCompGUID: allCompGUIDs.size,
+        uniqueGSTIN: allGSTINs.size
     };
 
-    const rdpRaw = mappedCols.rdpUpdate >= 0 ? values[mappedCols.rdpUpdate] : '';
-    const actRaw = mappedCols.lastActive >= 0 ? values[mappedCols.lastActive] : '';
-    const instRaw = mappedCols.installDate >= 0 ? values[mappedCols.installDate] : '';
-    const expRaw = mappedCols.lastExpiry >= 0 ? values[mappedCols.lastExpiry] : '';
-    const blsRaw = mappedCols.blsExpiry >= 0 ? values[mappedCols.blsExpiry] : '';
+    // --- Per Category ---
+    result.categories = {};
+    categories.forEach(cat => {
+        const cd = catData[cat];
+        let catActive = 0, catExpired = 0;
+        cd.subs.forEach(subId => {
+            const info = subInfo.get(subId);
+            if (info && info.expiryDate && info.expiryDate > CUTOFF_DATE) catActive++;
+            else catExpired++;
+        });
 
-    r.rdpUpdate = parseFastDate(rdpRaw);
-    r.lastActive = parseFastDate(actRaw);
-    r.installDate = parseFastDate(instRaw);
-    r.lastExpiry = parseFastDate(expRaw);
-    r.blsExpiry = parseFastDate(blsRaw);
+        // CompGUID overlap: CompGUIDs in this category that also appear with a DIFFERENT subscription ID under a non-[cat] category
+        const compOverlapDetails = [];
+        const compOverlapSet = new Set();
+        cd.compguids.forEach(cg => {
+            const entries = compguidSubs.get(cg);
+            if (!entries) return;
+            // Find entries in THIS category
+            const thisCatSubs = new Set();
+            const otherCatEntries = {};
+            entries.forEach(e => {
+                if (normalizeCat(e.category) === cat) {
+                    thisCatSubs.add(e.subId);
+                } else {
+                    const oc = normalizeCat(e.category);
+                    if (!otherCatEntries[oc]) otherCatEntries[oc] = new Set();
+                    otherCatEntries[oc].add(e.subId);
+                }
+            });
+            // Check if there's any other category entry with a DIFFERENT subId
+            let hasOverlap = false;
+            for (const oc in otherCatEntries) {
+                const otherSubs = otherCatEntries[oc];
+                // Different subscription means at least one sub in other that is not in this
+                // Actually per requirement: "Found similar COMPGUID with different subscription id and where category is apart from [cat]"
+                // This means: the same CompGUID appears under a different sub with a different category
+                let diffSubs = new Set();
+                otherSubs.forEach(s => {
+                    if (!thisCatSubs.has(s)) diffSubs.add(s);
+                });
+                if (diffSubs.size > 0) {
+                    hasOverlap = true;
+                    compOverlapDetails.push({
+                        compguid: cg,
+                        thisCatSubs: [...thisCatSubs].slice(0, 5).join(', '),
+                        otherCategory: oc,
+                        otherSubs: [...diffSubs].slice(0, 5).join(', ')
+                    });
+                }
+            }
+            if (hasOverlap) compOverlapSet.add(cg);
+        });
 
-    if (r.compguid) {
-        if (!globalCompToSubs[r.compguid]) globalCompToSubs[r.compguid] = new Set();
-        globalCompToSubs[r.compguid].add(r.subscriptionId);
-    }
-    if (r.gstin) {
-        if (!globalGstinToSubs[r.gstin]) globalGstinToSubs[r.gstin] = new Set();
-        globalGstinToSubs[r.gstin].add(r.subscriptionId);
-    }
-    parsedData.push(r);
-}
+        // GSTIN overlap
+        const gstinOverlapDetails = [];
+        const gstinOverlapSet = new Set();
+        cd.gstins.forEach(g => {
+            const entries = gstinSubs.get(g);
+            if (!entries) return;
+            const thisCatSubs = new Set();
+            const otherCatEntries = {};
+            entries.forEach(e => {
+                if (normalizeCat(e.category) === cat) {
+                    thisCatSubs.add(e.subId);
+                } else {
+                    const oc = normalizeCat(e.category);
+                    if (!otherCatEntries[oc]) otherCatEntries[oc] = new Set();
+                    otherCatEntries[oc].add(e.subId);
+                }
+            });
+            let hasOverlap = false;
+            for (const oc in otherCatEntries) {
+                const otherSubs = otherCatEntries[oc];
+                let diffSubs = new Set();
+                otherSubs.forEach(s => {
+                    if (!thisCatSubs.has(s)) diffSubs.add(s);
+                });
+                if (diffSubs.size > 0) {
+                    hasOverlap = true;
+                    gstinOverlapDetails.push({
+                        gstin: g,
+                        thisCatSubs: [...thisCatSubs].slice(0, 5).join(', '),
+                        otherCategory: oc,
+                        otherSubs: [...diffSubs].slice(0, 5).join(', ')
+                    });
+                }
+            }
+            if (hasOverlap) gstinOverlapSet.add(g);
+        });
 
-function formatDateDisplay(ts) {
-    if (!ts) return '';
-    const d = new Date(ts);
-    const day = String(d.getDate()).padStart(2, '0');
-    const mon = MONTH_NAMES[d.getMonth()];
-    const year = d.getFullYear();
-    return `${day}/${mon}/${year}`;
-}
+        // Bifurcation table: License Type × Model × User
+        const bifurcation = {};
+        cd.subs.forEach(subId => {
+            const info = subInfo.get(subId);
+            if (!info) return;
+            const key = `${info.licenseType || 'N/A'}|${info.model || 'N/A'}|${info.user || 'N/A'}`;
+            if (!bifurcation[key]) {
+                bifurcation[key] = {
+                    licenseType: info.licenseType || 'N/A',
+                    model: info.model || 'N/A',
+                    user: info.user || 'N/A',
+                    subs: new Set(),
+                    active: 0,
+                    expired: 0,
+                    compguids: new Set(),
+                    gstins: new Set(),
+                    totalRenewal: 0,
+                    count: 0
+                };
+            }
+            const b = bifurcation[key];
+            b.subs.add(subId);
+            if (info.expiryDate && info.expiryDate > CUTOFF_DATE) b.active++;
+            else b.expired++;
+            // Add compguids and gstins from sub level
+            const scg = subCompGUIDs.get(subId);
+            if (scg) scg.forEach(c => b.compguids.add(c));
+            const sg = subGSTINs.get(subId);
+            if (sg) sg.forEach(g => b.gstins.add(g));
+            b.totalRenewal += info.renewalCount;
+            b.count++;
+        });
 
-function parseSortDate(str) {
-    if (!str) return 0;
-    const parts = str.split('/');
-    if (parts.length !== 3) return 0;
-    const day = parseInt(parts[0], 10);
-    const monIdx = MONTH_NAMES.indexOf(parts[1]);
-    const year = parseInt(parts[2], 10);
-    if (isNaN(day) || monIdx === -1 || isNaN(year)) return 0;
-    return new Date(year, monIdx, day).getTime();
-}
+        const bifurcationRows = Object.values(bifurcation).map(b => ({
+            licenseType: b.licenseType,
+            model: b.model,
+            user: b.user,
+            totalSubs: b.subs.size,
+            active: b.active,
+            expired: b.expired,
+            uniqueCompGUID: b.compguids.size,
+            uniqueGSTIN: b.gstins.size,
+            avgRenewal: b.count > 0 ? (b.totalRenewal / b.count).toFixed(1) : '0'
+        })).sort((a, b) => b.totalSubs - a.totalSubs);
 
-function normalizeModel(m) {
-    if (!m) return 'Unknown';
-    const lower = m.toLowerCase();
-    if (lower.includes('standard')) return 'Standard';
-    if (lower.includes('enterprise')) return 'Enterprise';
-    if (lower.includes('basic')) return 'Basic';
-    if (lower.includes('saffron')) return 'Saffron';
-    if (lower.includes('emerald')) return 'Emerald';
-    if (lower.includes('blue')) return 'Blue';
-    if (lower.includes('neo')) return 'Neo';
-    return 'Unknown';
-}
+        // Charts data for this category
+        const catChartData = computeChartData(cd.subs, subInfo);
 
-function normalizeUser(u) {
-    if (!u) return 'Unknown';
-    const lower = u.toLowerCase().replace(/[\s_]/g, '');
-    if (lower.includes('single')) return 'Singleuser';
-    if (lower.includes('dual')) return 'Dualuser';
-    if (lower.includes('multi')) return 'Multiuser';
-    if (lower.includes('sql')) return 'SQLuser';
-    return 'Unknown';
+        result.categories[cat] = {
+            totalSubs: cd.subs.size,
+            activeLic: catActive,
+            expiredLic: catExpired,
+            compTotal: cd.compguids.size,
+            compOverlap: compOverlapSet.size,
+            gstinTotal: cd.gstins.size,
+            gstinOverlap: gstinOverlapSet.size,
+            compOverlapDetails,
+            gstinOverlapDetails,
+            bifurcationRows,
+            chartData: catChartData
+        };
+    });
+
+    // --- Global Charts ---
+    const allSubsSet = new Set(subInfo.keys());
+    result.globalCharts = computeChartData(allSubsSet, subInfo);
+
+    return result;
 }
 
 function normalizeCat(cat) {
     if (!cat) return 'Regular';
-    const c = cat.trim().toLowerCase();
-    if (c === 'ca') return 'CA';
-    if (c === 'accountant') return 'Accountant';
-    if (c === 'gstp') return 'GSTP';
-    if (c === 'regular') return 'Regular';
-    return cat.trim();
+    const c = cat.trim();
+    if (c.toLowerCase() === 'ca') return 'CA';
+    if (c.toLowerCase() === 'accountant') return 'Accountant';
+    if (c.toLowerCase() === 'gstp') return 'GSTP';
+    if (c.toLowerCase() === 'regular') return 'Regular';
+    // Default
+    return c;
 }
 
-function formatNum(n) { return n ? n.toLocaleString('en-IN') : '0'; }
-function formatLabelNum(value) {
-    if (value >= 100000) return (value / 100000).toFixed(1).replace(/\.0$/, '') + 'L';
-    if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    return value;
-}
+function computeChartData(subsSet, subInfo) {
+    // Customer Cluster Distribution × RDP Adoption
+    const custCluster = {}; // cluster -> { totalSubs, rdpSubs }
+    const partCluster = {};
+    const partnerMap = {}; // owner_partner -> { totalSubs, rdpSubs }
 
-function isExpired(row) {
-    const today = Date.now();
-    if (row.blsExpiry && row.blsExpiry < today) return true;
-    if (!row.blsExpiry && row.lastExpiry && row.lastExpiry < today) return true;
-    return false;
-}
-function isActive(row) { return !isExpired(row); }
+    subsSet.forEach(subId => {
+        const info = subInfo.get(subId);
+        if (!info) return;
 
-function getSubLevelCounts(dataSubset) {
-    let total = 0, active = 0, expired = 0;
-    const subSetStatus = {};
-    dataSubset.forEach(r => {
-        if (subSetStatus[r.subscriptionId] === undefined) subSetStatus[r.subscriptionId] = false;
-        if (isActive(r)) subSetStatus[r.subscriptionId] = true;
-    });
-    const keys = Object.keys(subSetStatus);
-    total = keys.length;
-    keys.forEach(k => { if (subSetStatus[k]) active++; else expired++; });
-    return { total, active, expired };
-}
+        const cc = info.customerCluster || 'Unknown';
+        if (!custCluster[cc]) custCluster[cc] = { total: 0, rdp: 0 };
+        custCluster[cc].total++;
+        if (info.rdpCount > 0) custCluster[cc].rdp++;
 
-// ===================== EXTRATORS AND HEADERS =====================
-const RAW_KEYS = ['subscriptionId','compguid','gstin','licenseCategory','licenseType','model','user','customerCluster','partnerCluster','ownerPartner','rdpCount','installDate','rdpUpdate','lastActive','lastExpiry','blsExpiry'];
-const RAW_DATE_COLS = new Set([11,12,13,14,15]);
+        const pc = info.partnerCluster || 'Unknown';
+        if (!partCluster[pc]) partCluster[pc] = { total: 0, rdp: 0 };
+        partCluster[pc].total++;
+        if (info.rdpCount > 0) partCluster[pc].rdp++;
 
-function getRowCellValues(item, type) {
-    if (type === 'raw') {
-        return RAW_KEYS.map((k, i) => {
-            let v = item[k];
-            if (RAW_DATE_COLS.has(i)) return formatDateDisplay(v);
-            return v === undefined || v === null ? '' : String(v);
-        });
-    } else if (type === 'new_act') {
-        const o = item.oldSub, n = item.newSub;
-        return [
-            o.subscriptionId||'', o.ownerPartner||'', formatDateDisplay(o.lastExpiry), formatDateDisplay(o.lastActive), normalizeModel(o.model),
-            n.subscriptionId||'', n.ownerPartner||'', formatDateDisplay(n.installDate), formatDateDisplay(n.lastActive), normalizeModel(n.model),
-            (item.matchType||'')+': '+(item.matchVal||'')
-        ];
-    } else if (type === 'rdp_switch') {
-        const o = item.oldSub, n = item.newSub;
-        return [
-            o.subscriptionId||'', o.ownerPartner||'', formatDateDisplay(o.lastExpiry), formatDateDisplay(o.lastActive), normalizeModel(o.model),
-            n.subscriptionId||'', n.ownerPartner||'', formatDateDisplay(n.lastExpiry), formatDateDisplay(n.rdpUpdate), formatDateDisplay(n.lastActive), normalizeModel(n.model), String(n.rdpCount||0),
-            (item.matchType||'')+': '+(item.matchVal||'')
-        ];
-    }
-    return [];
-}
-
-function getDateColIndices(type) {
-    if (type === 'raw') return RAW_DATE_COLS;
-    if (type === 'new_act') return new Set([2,3,7,8]);
-    if (type === 'rdp_switch') return new Set([2,3,7,8,9]);
-    return new Set();
-}
-
-// ===================== FILTER ENGINE =====================
-function applyAllFilters() {
-    const globalSearch = (document.getElementById('globalSearchInput').value || '').toLowerCase().trim();
-    const colFilterInputs = document.querySelectorAll('.col-filter-input');
-    const colFilters = [];
-    colFilterInputs.forEach(inp => colFilters.push((inp.value || '').toLowerCase().trim()));
-
-    modalDataFiltered = modalDataOriginal.filter(item => {
-        const cells = getRowCellValues(item, modalType);
-        for (let i = 0; i < colFilters.length; i++) {
-            if (colFilters[i] && !cells[i].toLowerCase().includes(colFilters[i])) return false;
-        }
-        if (globalSearch) {
-            const joined = cells.join(' ').toLowerCase();
-            if (!joined.includes(globalSearch)) return false;
-        }
-        return true;
+        const op = info.ownerPartner || 'Unknown';
+        if (!partnerMap[op]) partnerMap[op] = { total: 0, rdp: 0 };
+        partnerMap[op].total++;
+        if (info.rdpCount > 0) partnerMap[op].rdp++;
     });
 
-    modalIndex = 0;
-    document.getElementById('modalTableBody').innerHTML = '';
-    document.getElementById('modalScrollArea').scrollTop = 0;
-    loadMoreModalData();
-    
-    const activeCount = colFilters.filter(f => f).length + (globalSearch ? 1 : 0);
-    document.getElementById('filterInfo').textContent = activeCount > 0 
-        ? `${activeCount} filter(s) active · ${modalDataFiltered.length.toLocaleString()} matched`
-        : `${modalDataFiltered.length.toLocaleString()} records`;
+    // Top 10 Customer Clusters by total subs
+    const top10CustCluster = Object.entries(custCluster)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10)
+        .map(([name, d]) => ({
+            name,
+            total: d.total,
+            rdp: d.rdp,
+            rdpPct: d.total > 0 ? ((d.rdp / d.total) * 100).toFixed(1) : 0
+        }));
+
+    // Top 10 Partner Clusters
+    const top10PartCluster = Object.entries(partCluster)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10)
+        .map(([name, d]) => ({
+            name,
+            total: d.total,
+            rdp: d.rdp,
+            rdpPct: d.total > 0 ? ((d.rdp / d.total) * 100).toFixed(1) : 0
+        }));
+
+    // Top 15 Partners by RDP subscriptions
+    const top15Partners = Object.entries(partnerMap)
+        .sort((a, b) => b[1].rdp - a[1].rdp)
+        .slice(0, 15)
+        .map(([name, d]) => ({
+            name,
+            total: d.total,
+            rdp: d.rdp,
+            rdpPct: d.total > 0 ? ((d.rdp / d.total) * 100).toFixed(1) : 0
+        }));
+
+    return { top10CustCluster, top10PartCluster, top15Partners };
 }
 
-function clearAllFilters() {
-    document.getElementById('globalSearchInput').value = '';
-    document.querySelectorAll('.col-filter-input').forEach(inp => inp.value = '');
-    applyAllFilters();
-}
+// ========== RENDER DASHBOARD ==========
+function renderDashboard(results) {
+    // Summary Table
+    animateValue('summTotalSubs', results.summary.totalSubs);
+    animateValue('summActiveLic', results.summary.activeLic);
+    animateValue('summExpiredLic', results.summary.expiredLic);
+    animateValue('summUniqueComp', results.summary.uniqueCompGUID);
+    animateValue('summUniqueGSTIN', results.summary.uniqueGSTIN);
 
-// ===================== INFINITE SCROLL =====================
-function loadMoreModalData() {
-    if (modalIndex >= modalDataFiltered.length) return;
-    
-    const slice = modalDataFiltered.slice(modalIndex, modalIndex + CHUNK_SIZE);
-    const globalSearch = (document.getElementById('globalSearchInput').value || '').toLowerCase().trim();
-    let html = '';
-    
-    slice.forEach(item => {
-        const cells = getRowCellValues(item, modalType);
-        html += '<tr>';
-        cells.forEach((cell, ci) => {
-            let display = escapeHtml(cell);
-            if (globalSearch && cell.toLowerCase().includes(globalSearch)) {
-                display = highlightText(cell, globalSearch);
-            }
-            const borderClass = getBorderClass(modalType, ci);
-            html += `<td${borderClass ? ' class="'+borderClass+'"' : ''} title="${escapeHtml(cell)}">${display}</td>`;
-        });
-        html += '</tr>';
-    });
-
-    document.getElementById('modalTableBody').insertAdjacentHTML('beforeend', html);
-    modalIndex += CHUNK_SIZE;
-
-    const showing = Math.min(modalIndex, modalDataFiltered.length);
-    document.getElementById('modalWarning').innerHTML = `Showing <b>${showing.toLocaleString()}</b> of <b>${modalDataFiltered.length.toLocaleString()}</b> records` + (modalDataFiltered.length < modalDataOriginal.length ? ` (filtered from ${modalDataOriginal.length.toLocaleString()})` : '') + `. <i>(Scroll down to load more)</i>`;
-    document.getElementById('modalWarning').style.display = 'block';
-}
-
-function getBorderClass(type, ci) {
-    if (type === 'new_act' && (ci === 4 || ci === 9)) return 'mig-border-right';
-    if (type === 'rdp_switch' && (ci === 4 || ci === 11)) return 'mig-border-right';
-    return '';
-}
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-function highlightText(text, search) {
-    if (!search) return escapeHtml(text);
-    const idx = text.toLowerCase().indexOf(search);
-    if (idx === -1) return escapeHtml(text);
-    const before = text.substring(0, idx);
-    const match = text.substring(idx, idx + search.length);
-    const after = text.substring(idx + search.length);
-    return escapeHtml(before) + '<span class="highlight-match">' + escapeHtml(match) + '</span>' + highlightText(after, search);
-}
-
-function getSortValue(item, type, colIdx) {
-    const cells = getRowCellValues(item, type);
-    return cells[colIdx] || '';
-}
-
-function sortModalTable(thElement, colIdx) {
-    const isAsc = thElement.classList.contains('asc');
-    thElement.closest('thead').querySelectorAll('th.sortable').forEach(th => th.classList.remove('asc','desc'));
-    thElement.classList.add(isAsc ? 'desc' : 'asc');
-    
-    const dateCols = getDateColIndices(modalType);
-    const isDateCol = dateCols.has(colIdx);
-
-    modalDataFiltered.sort((a, b) => {
-        let valA = getSortValue(a, modalType, colIdx);
-        let valB = getSortValue(b, modalType, colIdx);
-        
-        if (isDateCol) {
-            const dA = parseSortDate(valA);
-            const dB = parseSortDate(valB);
-            if (dA || dB) return isAsc ? dA - dB : dB - dA;
-        }
-        
-        let numA = parseFloat(String(valA).replace(/,/g,''));
-        let numB = parseFloat(String(valB).replace(/,/g,''));
-        if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
-            return isAsc ? numA - numB : numB - numA;
-        }
-        
-        return isAsc ? String(valA).toLowerCase().localeCompare(String(valB).toLowerCase())
-                     : String(valB).toLowerCase().localeCompare(String(valA).toLowerCase());
-    });
-
-    modalIndex = 0;
-    document.getElementById('modalTableBody').innerHTML = '';
-    document.getElementById('modalScrollArea').scrollTop = 0;
-    loadMoreModalData();
-}
-
-const STD_HEADERS = ['Subscription ID','CompGUID','GSTIN','Category','License Type','Model','User','Customer Cluster','Partner Cluster','Owner Partner','RDP Count','Install Date','RDP Update','Last Active','Last Expiry','BLS Expiry'];
-
-function buildFilterRow(headers) {
-    return '<tr class="filter-row">' + headers.map((h,i) => 
-        `<th><input type="text" class="col-filter-input" placeholder="Filter..." oninput="applyAllFilters()" data-col="${i}"></th>`
-    ).join('') + '</tr>';
-}
-
-function showRawData(title, predicate) {
-    const headerRow = '<tr>' + STD_HEADERS.map((h,i) => `<th class="sortable" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + '</tr>';
-    const filterRow = buildFilterRow(STD_HEADERS);
-    document.getElementById('modalThead').innerHTML = headerRow + filterRow;
-    document.getElementById('modalTitle').innerText = `Raw Data: ${title}`;
-    document.getElementById('globalSearchInput').value = '';
-    
-    modalDataOriginal = parsedData.filter(predicate);
-    modalDataFiltered = [...modalDataOriginal];
-    modalType = 'raw';
-    modalIndex = 0;
-    document.getElementById('modalTableBody').innerHTML = '';
-    document.getElementById('modalScrollArea').scrollTop = 0;
-    
-    if (modalDataFiltered.length === 0) {
-        document.getElementById('modalTableBody').innerHTML = '<tr><td colspan="16" style="text-align:center">No data matching this filter.</td></tr>';
-        document.getElementById('modalWarning').style.display = 'none';
-        document.getElementById('filterInfo').textContent = '0 records';
-    } else {
-        loadMoreModalData();
-        document.getElementById('filterInfo').textContent = `${modalDataOriginal.length.toLocaleString()} records`;
-    }
-    
-    document.getElementById('rawModal').style.display = 'flex';
-}
-
-function showMigrationData(title, pairs, type) {
-    let headers = [];
-    let headerHTML = '';
-    
-    // EXACT MATCH TO REQUESTED HEADERS
-    if (type === 'new_act') {
-        headers = ['Sub Id','Partner','Expiry Date','Last Active','Model', 'Sub Id','Partner','Install Date','Last Active','Model', 'Match Criteria'];
-        headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 EXPIRED</th>
-            <th colspan="5" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
-            <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
-        </tr><tr>` + headers.map((h,i) => `<th class="sortable ${i===4||i===9?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
-    } else {
-        headers = ['Sub Id','Partner','Expiry Date','Last Active','Model',
-            'Sub Id','Partner','Expiry Date','RDP Update','Last Active','Model','RDP User',
-            'Match Criteria'];
-        headerHTML = `<tr>
-            <th colspan="5" style="background:#fef2f2;text-align:center;color:#b91c1c;font-weight:700;" class="mig-border-right">🔴 EXPIRED</th>
-            <th colspan="7" style="background:#f0fdf4;text-align:center;color:#15803d;font-weight:700;" class="mig-border-right">🟢 NEW SUBSCRIPTION</th>
-            <th style="background:var(--bg-primary);text-align:center;font-weight:700;">🔗 MATCH</th>
-        </tr><tr>` + headers.map((h,i) => `<th class="sortable ${i===4||i===11?'mig-border-right':''}" onclick="sortModalTable(this,${i})">${h}</th>`).join('') + `</tr>`;
-    }
-
-    const filterRow = buildFilterRow(headers);
-    document.getElementById('modalThead').innerHTML = headerHTML + filterRow;
-    document.getElementById('modalTitle').innerText = `Comparison Data: ${title}`;
-    document.getElementById('globalSearchInput').value = '';
-    
-    modalDataOriginal = pairs;
-    modalDataFiltered = [...modalDataOriginal];
-    modalType = type;
-    modalIndex = 0;
-    document.getElementById('modalTableBody').innerHTML = '';
-    document.getElementById('modalScrollArea').scrollTop = 0;
-    
-    const colCount = type === 'new_act' ? 11 : 13;
-    if (modalDataFiltered.length === 0) {
-        document.getElementById('modalTableBody').innerHTML = `<tr><td colspan="${colCount}" style="text-align:center">No data matching this filter.</td></tr>`;
-        document.getElementById('modalWarning').style.display = 'none';
-        document.getElementById('filterInfo').textContent = '0 records';
-    } else {
-        loadMoreModalData();
-        document.getElementById('filterInfo').textContent = `${modalDataOriginal.length.toLocaleString()} records`;
-    }
-    
-    document.getElementById('rawModal').style.display = 'flex';
-}
-
-function closeRawData() { document.getElementById('rawModal').style.display = 'none'; }
-
-function showLandingPage() {
-    document.getElementById('landingPage').style.display = 'block';
-    document.getElementById('detailPage').className = 'detail-page';
-    document.getElementById('detailPage').innerHTML = '';
-    renderSummaryBar();
-    renderCategoryCards();
-    renderCharts();
-}
-
-function renderSummaryBar() {
-    const counts = getSubLevelCounts(parsedData);
-    const uComp = new Set(parsedData.map(r => r.compguid).filter(Boolean));
-    const uGst = new Set(parsedData.map(r => r.gstin).filter(Boolean));
-    const health = counts.total > 0 ? Math.round((counts.active / counts.total) * 100) : 0;
-    
-    document.getElementById('summaryBar').innerHTML = `
-        <div class="summary-stat blue clickable" onclick="showRawData('All Subscriptions', r=>true)">
-            <div class="value number-format">${formatNum(counts.total)}</div><div class="label">Total Subs</div></div>
-        <div class="summary-stat green clickable" onclick="showRawData('All Active', r=>isActive(r))">
-            <div class="value number-format">${formatNum(counts.active)}</div><div class="label">Active Licenses</div></div>
-        <div class="summary-stat red clickable" onclick="showRawData('All Expired', r=>isExpired(r))">
-            <div class="value number-format">${formatNum(counts.expired)}</div><div class="label">Expired Licenses</div></div>
-        <div class="summary-stat purple clickable" onclick="showRawData('Has CompGUID', r=>r.compguid)">
-            <div class="value number-format">${formatNum(uComp.size)}</div><div class="label">Unique CompGUID</div></div>
-        <div class="summary-stat cyan clickable" onclick="showRawData('Has GSTIN', r=>r.gstin)">
-            <div class="value number-format">${formatNum(uGst.size)}</div><div class="label">Unique GSTIN</div></div>
-        <div class="summary-stat yellow">
-            <div class="value"><span class="health-indicator"><span class="health-dot ${health>=70?'good':health>=40?'warning':'bad'}"></span>${health}%</span></div>
-            <div class="label">System Health</div></div>`;
-}
-
-function getCrossLinkStats(category) {
-    const catData = parsedData.filter(r => r.licenseCategory === category);
-    let guids = new Set(), gstins = new Set();
-    catData.forEach(r => { if(r.compguid) guids.add(r.compguid); if(r.gstin) gstins.add(r.gstin); });
-    
-    let crossGuidsCount = 0, crossGuidsSubs = new Set();
-    guids.forEach(g => {
-        if (globalCompToSubs[g] && globalCompToSubs[g].size > 1) {
-            crossGuidsCount++;
-            globalCompToSubs[g].forEach(s => crossGuidsSubs.add(s));
-        }
-    });
-
-    let crossGstinCount = 0, crossGstinSubs = new Set();
-    gstins.forEach(g => {
-        if (globalGstinToSubs[g] && globalGstinToSubs[g].size > 1) {
-            crossGstinCount++;
-            globalGstinToSubs[g].forEach(s => crossGstinSubs.add(s));
-        }
-    });
-    return { comp: {count: crossGuidsCount, subs: crossGuidsSubs.size}, gstin: {count: crossGstinCount, subs: crossGstinSubs.size} };
-}
-
-function renderCategoryCards() {
-    const container = document.getElementById('categoryGrid');
-    container.innerHTML = '';
-    CATEGORIES.forEach(cat => {
-        const meta = CAT_META[cat];
-        const catData = parsedData.filter(r => r.licenseCategory === cat);
-        const counts = getSubLevelCounts(catData);
-        const cross = getCrossLinkStats(cat);
-        const pct = counts.total > 0 ? Math.round((counts.active / counts.total) * 100) : 0;
-
-        const card = document.createElement('div');
-        card.className = `category-card ${meta.cls}`;
-        card.onclick = () => showDetailPage(cat);
-        card.innerHTML = `
-            <div class="card-header"><div class="card-badge">${meta.code}</div></div>
-            <div class="card-title">${meta.title}</div>
-            <div class="card-description">${meta.desc}</div>
-            <div class="xl-box">
-                <div class="xl-row"><span>COMPGUID = <b>${formatNum(cross.comp.count)}</b></span><span>|| Subs Id = <b>${formatNum(cross.comp.subs)}</b></span></div>
-                <div class="xl-row"><span>GSTIN = <b>${formatNum(cross.gstin.count)}</b></span><span>|| Subs Id = <b>${formatNum(cross.gstin.subs)}</b></span></div>
-            </div>
-            <div class="card-progress"><div class="card-progress-fill" style="width:${pct}%"></div></div>
-            <div class="card-stats">
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.total)}</div><div class="stat-label">Total</div></div>
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.active)}</div><div class="stat-label">Active</div></div>
-                <div class="card-stat-item"><div class="stat-value">${formatNum(counts.expired)}</div><div class="stat-label">Expired</div></div>
-            </div>`;
-        container.appendChild(card);
-    });
-}
-
-function renderCharts() {
-    Object.keys(chartInstances).forEach(k => chartInstances[k].destroy());
-    chartInstances = {};
-    renderClusterChart('customerClusterChart', 'customerCluster');
-    renderClusterChart('partnerClusterChart', 'partnerCluster');
-    renderPartnerRdpChart('partnerRdpChart');
-}
-
-function renderClusterChart(canvasId, field) {
-    const clusterMap = {};
-    parsedData.forEach(r => {
-        let key = r[field];
-        if (!key || !key.trim() || key.toUpperCase() === 'NULL' || key === '#N/A') key = 'Unknown';
-        if (!clusterMap[key]) clusterMap[key] = { totalSubIds: new Set(), rdpSubIds: new Set() };
-        clusterMap[key].totalSubIds.add(r.subscriptionId);
-        if (r.rdpCount > 0) clusterMap[key].rdpSubIds.add(r.subscriptionId);
-    });
-
-    const dataArr = Object.keys(clusterMap).map(k => {
-        const totalSubs = clusterMap[k].totalSubIds.size;
-        const rdpSubs = clusterMap[k].rdpSubIds.size;
-        const rdpPct = totalSubs > 0 ? parseFloat(((rdpSubs / totalSubs) * 100).toFixed(1)) : 0;
-        return { name: k, subs: totalSubs, rdpPct: rdpPct };
-    }).sort((a, b) => b.subs - a.subs).slice(0, 10);
-
-    chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: dataArr.map(d => d.name),
-            datasets: [
-                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: '#3b82f6', yAxisID: 'y', order: 2 },
-                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            onClick: (e, els, chart) => {
-                if (els.length) showRawData(`${field}: ${chart.data.labels[els[0].index]}`, r => (r[field]||'Unknown') === chart.data.labels[els[0].index]);
-            },
-            plugins: {
-                legend: { display: false },
-                datalabels: {
-                    display: c => c.dataset.data[c.dataIndex] > 0,
-                    color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
-                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
-                    align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: (v, c) => c.datasetIndex === 1 ? v + '%' : formatLabelNum(v),
-                    font: { size: 10, weight: 'bold' }
-                }
-            },
-            scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } }
-        }
-    });
-}
-
-function renderPartnerRdpChart(canvasId) {
-    const partnerMap = {};
-    parsedData.forEach(r => {
-        const p = r.ownerPartner;
-        if (!p || !p.trim() || p.toUpperCase() === 'NULL' || p === '#N/A') return;
-        if (!partnerMap[p]) partnerMap[p] = { totalSubIds: new Set(), rdpSubIds: new Set() };
-        partnerMap[p].totalSubIds.add(r.subscriptionId);
-        if (r.rdpCount > 0) partnerMap[p].rdpSubIds.add(r.subscriptionId);
-    });
-
-    const dataArr = Object.keys(partnerMap).map(p => {
-        const totalSubs = partnerMap[p].totalSubIds.size;
-        const rdpSubs = partnerMap[p].rdpSubIds.size;
-        const rdpPct = totalSubs > 0 ? parseFloat(((rdpSubs / totalSubs) * 100).toFixed(1)) : 0;
-        return { name: p, subs: totalSubs, rdpSubs: rdpSubs, rdpPct: rdpPct };
-    }).filter(d => d.rdpSubs > 0).sort((a, b) => b.rdpSubs - a.rdpSubs).slice(0, 15);
-
-    chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: dataArr.map(d => d.name),
-            datasets: [
-                { label: 'Total Subscriptions', data: dataArr.map(d=>d.subs), backgroundColor: 'rgba(16,185,129,0.8)', yAxisID: 'y', order: 2 },
-                { label: 'RDP Adoption %', data: dataArr.map(d=>d.rdpPct), type: 'line', borderColor: '#f97316', borderWidth: 3, yAxisID: 'y1', order: 1, tension: 0.4 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            onClick: (e, els, chart) => {
-                if (els.length) showRawData(`Partner: ${chart.data.labels[els[0].index]}`, r => r.ownerPartner === chart.data.labels[els[0].index]);
-            },
-            plugins: {
-                legend: { display: false },
-                datalabels: {
-                    color: c => c.datasetIndex === 0 ? '#fff' : '#f97316',
-                    anchor: c => c.datasetIndex === 0 ? 'end' : 'center',
-                    align: c => c.datasetIndex === 0 ? 'bottom' : 'top',
-                    formatter: (v, c) => c.datasetIndex === 1 ? v + '%' : formatLabelNum(v),
-                    font: { size: 10, weight: 'bold' }
-                }
-            },
-            scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } }
-        }
-    });
-}
-
-function showDetailPage(category) {
-    document.getElementById('landingPage').style.display = 'none';
-    const detailPage = document.getElementById('detailPage');
-    detailPage.className = 'detail-page active';
-    detailPage.innerHTML = '<div style="text-align:center;padding:100px;"><div class="spinner"></div></div>';
-
-    setTimeout(() => {
-        const catData = parsedData.filter(r => r.licenseCategory === category);
-        const counts = getSubLevelCounts(catData);
-        const uniqueCompguids = new Set(catData.map(r => r.compguid).filter(Boolean));
-        const uniqueGSTINs = new Set(catData.map(r => r.gstin).filter(Boolean));
-        
-        let rdpLicenseCount = 0;
-        const subRdp = {};
-        catData.forEach(r => subRdp[r.subscriptionId] = Math.max(subRdp[r.subscriptionId]||0, r.rdpCount));
-        Object.values(subRdp).forEach(v => { if (v > 0) rdpLicenseCount++; });
-        
-        const switchActivation = calculateRDPSwitchAndNewActivation(category, catData);
-        window.currentMigrationPairs = { switch: switchActivation.rdpSwitchPairs, act: switchActivation.newActPairs };
-
-        let html = `
-            <button class="back-btn" onclick="showLandingPage()">← Back to Dashboard</button>
-            <div class="detail-title">
-                <div class="badge-large" style="background:${CAT_META[category].color}22;color:${CAT_META[category].color}">${CAT_META[category].code}</div>
-                <h2>${CAT_META[category].title}</h2>
-            </div>
-            <div class="detail-summary">
-                <div class="detail-stat clickable" onclick="showRawData('Subs in ${category}', r=>r.licenseCategory==='${category}')"><div class="d-value">${formatNum(counts.total)}</div><div class="d-label">Unique Subs</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Active in ${category}', r=>r.licenseCategory==='${category}'&&isActive(r))"><div class="d-value">${formatNum(counts.active)}</div><div class="d-label">Active</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Expired in ${category}', r=>r.licenseCategory==='${category}'&&isExpired(r))"><div class="d-value">${formatNum(counts.expired)}</div><div class="d-label">Expired</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has COMPGUID in ${category}', r=>r.licenseCategory==='${category}'&&r.compguid)"><div class="d-value">${formatNum(uniqueCompguids.size)}</div><div class="d-label">Unique COMPGUID</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has GSTIN in ${category}', r=>r.licenseCategory==='${category}'&&r.gstin)"><div class="d-value">${formatNum(uniqueGSTINs.size)}</div><div class="d-label">Unique GSTIN</div></div>
-                <div class="detail-stat clickable" onclick="showRawData('Has RDP in ${category}', r=>r.licenseCategory==='${category}'&&r.rdpCount>0)"><div class="d-value">${formatNum(rdpLicenseCount)}</div><div class="d-label">RDP Licenses</div></div>
-                <div class="detail-stat clickable" style="border:1px dashed var(--accent-orange);" onclick="showMigrationData('RDP Migration Swaps', window.currentMigrationPairs.switch, 'rdp_switch')">
-                    <div class="d-value" style="color:var(--accent-orange);">${formatNum(switchActivation.rdpSwitchPairs.length)}</div>
-                    <div class="d-label">RDP Migration Swaps (90d)</div>
-                </div>
-                <div class="detail-stat clickable" style="border:1px dashed var(--accent-yellow);" onclick="showMigrationData('New Activations', window.currentMigrationPairs.act, 'new_act')">
-                    <div class="d-value" style="color:var(--accent-yellow);">${formatNum(switchActivation.newActPairs.length)}</div>
-                    <div class="d-label">New Activations (90d)</div>
-                </div>
-            </div>`;
-        html += buildModelMatrix(catData, category);
-        html += buildRDPTable(catData, category);
-        html += buildOverlapSection(category);
-        detailPage.innerHTML = html;
-    }, 40);
-}
-
-function buildModelMatrix(catData, category) {
-    const targetModels = ['Standard','Enterprise','Basic','Saffron','Emerald','Blue','Neo'];
-    const targetUsers = ['Singleuser','Dualuser','Multiuser','SQLuser'];
-    const matrix = {};
-    targetModels.forEach(m => { matrix[m] = {}; targetUsers.forEach(u => matrix[m][u] = new Set()); });
-
-    catData.forEach(r => {
-        const m = normalizeModel(r.model), u = normalizeUser(r.user);
-        if (matrix[m] && matrix[m][u]) matrix[m][u].add(r.subscriptionId);
-    });
-
-    let html = '<div class="table-section"><h3>📊 Model Distribution (Rows: Model, Columns: User)</h3><div class="scroll-table"><table><thead><tr><th>Model</th>';
-    targetUsers.forEach(u => html += `<th>${u}</th>`);
-    html += '<th>Total</th></tr></thead><tbody>';
-
-    targetModels.forEach(m => {
-        html += `<tr><td><b>${m}</b></td>`;
-        let rowTot = 0;
-        targetUsers.forEach(u => {
-            const count = matrix[m][u].size;
-            rowTot += count;
-            if (count === 0) {
-                html += `<td class="number-format" style="color:var(--text-secondary);">--</td>`;
-            } else {
-                html += `<td class="clickable-cell number-format" onclick="showRawData('Model: ${m}, User: ${u}', r=>normalizeModel(r.model)==='${m}'&&normalizeUser(r.user)==='${u}'&&r.licenseCategory==='${category}')">${formatNum(count)}</td>`;
-            }
-        });
-        html += `<td class="number-format" style="font-weight:bold">${rowTot === 0 ? '--' : formatNum(rowTot)}</td></tr>`;
-    });
-    return html + '</tbody></table></div></div>';
-}
-
-function calculateRDPSwitchAndNewActivation(currentCategory, catData) {
-    const today = Date.now();
-    const currentDataByCompguid = {}, currentDataByGstin = {};
-    
-    catData.forEach(r => {
-        if (r.compguid) {
-            if (!currentDataByCompguid[r.compguid]) currentDataByCompguid[r.compguid] = [];
-            currentDataByCompguid[r.compguid].push(r);
-        }
-        if (r.gstin) {
-            if (!currentDataByGstin[r.gstin]) currentDataByGstin[r.gstin] = [];
-            currentDataByGstin[r.gstin].push(r);
-        }
-    });
-
-    let rdpSwitchPairs = [], newActPairs = [];
-    const otherSubMap = {};
-    parsedData.forEach(r => {
-        if (r.licenseCategory !== currentCategory) {
-            if (!otherSubMap[r.subscriptionId]) otherSubMap[r.subscriptionId] = [];
-            otherSubMap[r.subscriptionId].push(r);
-        }
-    });
-
-    const countedSw = new Set(), countedAct = new Set();
-    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
-
-    Object.keys(otherSubMap).forEach(subId => {
-        if (!subId) return;
-        const rows = otherSubMap[subId];
-        const exps = rows.map(r => r.lastExpiry).filter(Boolean);
-        if (!exps.length) return;
-        
-        const maxExp = Math.max(...exps);
-        if (maxExp >= today) return;
-
-        const oldRow = rows.find(r => r.lastExpiry === maxExp) || rows[0];
-
-        const checkMatch = (val, type, map) => {
-            if (!val) return;
-            const matches = map[val];
-            if (!matches) return;
-            matches.forEach(cr => {
-                const limit = maxExp - ninetyDays;
-                const k = subId + '|' + cr.subscriptionId;
-                const checkDate = cr.rdpUpdate || cr.lastActive || cr.installDate;
-
-                if (!countedSw.has(k) && checkDate && checkDate >= limit) {
-                    countedSw.add(k);
-                    rdpSwitchPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
-                }
-                if (!countedAct.has(k) && checkDate && checkDate >= limit && cr.installDate && cr.installDate >= limit) {
-                    countedAct.add(k);
-                    newActPairs.push({ oldSub: oldRow, newSub: cr, matchType: type, matchVal: val });
-                }
-            });
-        };
-
-        rows.forEach(r => {
-            checkMatch(r.compguid, 'COMPGUID', currentDataByCompguid);
-            checkMatch(r.gstin, 'GSTIN', currentDataByGstin);
-        });
-    });
-    
-    return { rdpSwitchPairs, newActPairs };
-}
-
-function buildRDPTable(catData, category) {
-    const subRDPMap = {};
-    catData.forEach(r => {
-        if (!subRDPMap[r.subscriptionId]) subRDPMap[r.subscriptionId] = { rdpCount: r.rdpCount, compguids: new Set(), gstins: new Set() };
-        subRDPMap[r.subscriptionId].rdpCount = Math.max(subRDPMap[r.subscriptionId].rdpCount, r.rdpCount);
-        if (r.compguid) subRDPMap[r.subscriptionId].compguids.add(r.compguid);
-        if (r.gstin) subRDPMap[r.subscriptionId].gstins.add(r.gstin);
-    });
-
-    const buckets = {};
-    Object.values(subRDPMap).forEach(s => {
-        const k = s.rdpCount > 0 ? s.rdpCount.toString() : 'No RDP';
-        if (!buckets[k]) buckets[k] = { count: 0, comp: 0, gst: 0 };
-        buckets[k].count++;
-        buckets[k].comp += s.compguids.size;
-        buckets[k].gst += s.gstins.size;
-    });
-
-    const nums = Object.keys(buckets).map(Number).filter(n => !isNaN(n)).sort((a,b) => a-b);
-    let html = '', gc = 0, gcComp = 0, gcGst = 0;
-    
-    const rowFn = (k, b) => {
-        gc += b.count; gcComp += b.comp; gcGst += b.gst;
-        const lbl = k === 'No RDP' ? k : `RDP Count: ${k}`;
-        html += `<tr>
-            <td>${k}</td>
-            <td class="clickable-cell" onclick="showRawData('${lbl} in ${category}', r=>r.licenseCategory==='${category}'&&(r.rdpCount==${k==='No RDP'?0:k}))">${formatNum(b.count)}</td>
-            <td>${b.count > 0 ? Math.round(b.comp / b.count) : 0}</td>
-            <td>${b.count > 0 ? Math.round(b.gst / b.count) : 0}</td>
-        </tr>`;
+    // Category Cards
+    const catIdMap = {
+        'CA': 'ca',
+        'Accountant': 'acc',
+        'GSTP': 'gstp',
+        'Regular': 'reg'
     };
 
-    nums.forEach(n => rowFn(n.toString(), buckets[n.toString()]));
-    if (buckets['No RDP']) rowFn('No RDP', buckets['No RDP']);
-
-    return `<div class="table-section"><h3>📋 RDP User Distribution</h3><div class="scroll-table"><table>
-        <thead><tr><th>RDP User</th><th>Count of Serial Number</th><th>Avg COMPGUID</th><th>Avg GSTIN</th></tr></thead>
-        <tbody>${html}
-            <tr style="background:var(--bg-card-hover);font-weight:700">
-                <td>Grand Total</td>
-                <td>${formatNum(gc)}</td>
-                <td>${gc > 0 ? Math.round(gcComp / gc) : 0}</td>
-                <td>${gc > 0 ? Math.round(gcGst / gc) : 0}</td>
-            </tr>
-        </tbody></table></div></div>`;
-}
-
-function buildOverlapSection(currentCategory) {
-    const otherCats = CATEGORIES.filter(c => c !== currentCategory);
-    let cards = '';
-    otherCats.forEach(oCat => {
-        cards += `<div class="overlap-card clickable" onclick="showRawData('${oCat} Subs', r=>r.licenseCategory==='${oCat}')">
-            <div class="overlap-value">🔗 Open ${oCat} Data</div>
-            <div class="overlap-label">Analyze overlaps via Raw Data</div>
-        </div>`;
+    Object.entries(results.categories).forEach(([cat, d]) => {
+        const prefix = catIdMap[cat];
+        animateValue(`${prefix}TotalSubs`, d.totalSubs);
+        animateValue(`${prefix}ActiveLic`, d.activeLic);
+        animateValue(`${prefix}ExpiredLic`, d.expiredLic);
+        animateValue(`${prefix}CompTotal`, d.compTotal);
+        animateValue(`${prefix}CompOverlap`, d.compOverlap);
+        animateValue(`${prefix}GstinTotal`, d.gstinTotal);
+        animateValue(`${prefix}GstinOverlap`, d.gstinOverlap);
     });
-    return `<div class="table-section" style="background:transparent;border:none;padding:0;box-shadow:none;">
-        <h3 style="margin-bottom:16px;">🔗 Other Categories Quick Links</h3>
-        <div class="overlap-section">${cards}</div>
-    </div>`;
+
+    // Global Charts
+    renderComboChart('chartCustomerCluster', results.globalCharts.top10CustCluster, 'Customer Cluster');
+    renderComboChart('chartPartnerCluster', results.globalCharts.top10PartCluster, 'Partner Cluster');
+    renderComboChart('chartTopPartners', results.globalCharts.top15Partners, 'Owner Partner');
 }
+
+function animateValue(elementId, value) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const formatted = typeof value === 'number' ? value.toLocaleString() : value;
+    el.textContent = formatted;
+}
+
+// ========== CHART RENDERING ==========
+let chartInstances = {};
+
+function renderComboChart(canvasId, data, labelPrefix) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    // Destroy existing chart
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    const labels = data.map(d => d.name.length > 18 ? d.name.substring(0, 18) + '...' : d.name);
+    const barData = data.map(d => d.total);
+    const lineData = data.map(d => parseFloat(d.rdpPct));
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Subscriptions',
+                    data: barData,
+                    backgroundColor: 'rgba(0, 212, 255, 0.6)',
+                    borderColor: 'rgba(0, 212, 255, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    yAxisID: 'y',
+                    order: 2,
+                    datalabels: {
+                        color: '#fff',
+                        anchor: 'end',
+                        align: 'top',
+                        font: { size: 10, weight: 'bold' },
+                        formatter: (val) => val.toLocaleString()
+                    }
+                },
+                {
+                    label: 'RDP Adoption %',
+                    data: lineData,
+                    type: 'line',
+                    borderColor: '#ff6384',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ff6384',
+                    pointBorderColor: '#fff',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    fill: false,
+                    yAxisID: 'y1',
+                    order: 1,
+                    tension: 0.3,
+                    datalabels: {
+                        color: '#ff6384',
+                        anchor: 'end',
+                        align: 'top',
+                        font: { size: 10, weight: 'bold' },
+                        formatter: (val) => val + '%'
+                    }
+                }
+            ]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#ccc',
+                        font: { size: 11 },
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(13, 17, 23, 0.95)',
+                    borderColor: 'rgba(0, 212, 255, 0.3)',
+                    borderWidth: 1,
+                    titleColor: '#fff',
+                    bodyColor: '#ccc',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            if (context.dataset.label === 'RDP Adoption %') {
+                                return `RDP Adoption: ${context.parsed.y}%`;
+                            }
+                            return `Total Subs: ${context.parsed.y.toLocaleString()}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#888',
+                        font: { size: 10 },
+                        maxRotation: 45,
+                        minRotation: 20
+                    },
+                    grid: {
+                        color: 'rgba(255,255,255,0.03)'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Total Subscriptions',
+                        color: '#00d4ff',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        color: '#00d4ff',
+                        font: { size: 10 },
+                        callback: (val) => val >= 1000 ? (val / 1000).toFixed(0) + 'K' : val
+                    },
+                    grid: {
+                        color: 'rgba(255,255,255,0.03)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'RDP Adoption %',
+                        color: '#ff6384',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        color: '#ff6384',
+                        font: { size: 10 },
+                        callback: (val) => val + '%'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    min: 0,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// ========== CATEGORY MODAL ==========
+let currentModalCategory = null;
+let compOverlapPage = 0;
+let gstinOverlapPage = 0;
+const OVERLAP_PAGE_SIZE = 50;
+
+function openCategoryModal(category) {
+    if (!computedResults || !computedResults.categories[category]) return;
+
+    currentModalCategory = category;
+    const cd = computedResults.categories[category];
+    const modal = document.getElementById('categoryModal');
+    const modalTitle = document.getElementById('modalTitle');
+
+    const catColors = {
+        'CA': '#00d4ff',
+        'Accountant': '#b388ff',
+        'GSTP': '#00e676',
+        'Regular': '#ffab40'
+    };
+
+    modalTitle.textContent = `${category} Licenses — Detailed Bifurcation`;
+    modalTitle.style.color = catColors[category] || '#fff';
+
+    // Stats grid
+    const statsGrid = document.getElementById('modalStatsGrid');
+    statsGrid.innerHTML = `
+        <div class="modal-stat-card">
+            <div class="modal-stat-value val-total">${cd.totalSubs.toLocaleString()}</div>
+            <div class="modal-stat-label">Total Subscriptions</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value val-active">${cd.activeLic.toLocaleString()}</div>
+            <div class="modal-stat-label">Active Licenses</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value val-expired">${cd.expiredLic.toLocaleString()}</div>
+            <div class="modal-stat-label">Expired Licenses</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value overlap-unique-cat">${cd.compTotal.toLocaleString()}</div>
+            <div class="modal-stat-label">Unique CompGUID</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value overlap-unique-cat">${cd.gstinTotal.toLocaleString()}</div>
+            <div class="modal-stat-label">Unique GSTIN</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value overlap-found">${cd.compOverlap.toLocaleString()}</div>
+            <div class="modal-stat-label">CompGUID Overlaps</div>
+        </div>
+        <div class="modal-stat-card">
+            <div class="modal-stat-value overlap-found">${cd.gstinOverlap.toLocaleString()}</div>
+            <div class="modal-stat-label">GSTIN Overlaps</div>
+        </div>
+    `;
+
+    // Bifurcation table
+    const bifBody = document.getElementById('modalBifurcationBody');
+    bifBody.innerHTML = cd.bifurcationRows.map(r => `
+        <tr>
+            <td>${r.licenseType}</td>
+            <td>${r.model}</td>
+            <td>${r.user}</td>
+            <td><strong>${r.totalSubs.toLocaleString()}</strong></td>
+            <td><span class="badge badge-active">${r.active.toLocaleString()}</span></td>
+            <td><span class="badge badge-expired">${r.expired.toLocaleString()}</span></td>
+            <td>${r.uniqueCompGUID.toLocaleString()}</td>
+            <td>${r.uniqueGSTIN.toLocaleString()}</td>
+            <td>${r.avgRenewal}</td>
+        </tr>
+    `).join('');
+
+    // Overlap tables with pagination
+    compOverlapPage = 0;
+    gstinOverlapPage = 0;
+    renderCompOverlapPage(cd);
+    renderGstinOverlapPage(cd);
+
+    // Modal charts
+    setTimeout(() => {
+        renderComboChart('modalChartCustCluster', cd.chartData.top10CustCluster, 'Customer Cluster');
+        renderComboChart('modalChartPartCluster', cd.chartData.top10PartCluster, 'Partner Cluster');
+        renderComboChart('modalChartTopPartners', cd.chartData.top15Partners, 'Owner Partner');
+    }, 100);
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function renderCompOverlapPage(cd) {
+    const body = document.getElementById('modalCompOverlapBody');
+    const pagination = document.getElementById('compOverlapPagination');
+    const data = cd.compOverlapDetails;
+    const totalPages = Math.ceil(data.length / OVERLAP_PAGE_SIZE);
+    const start = compOverlapPage * OVERLAP_PAGE_SIZE;
+    const end = Math.min(start + OVERLAP_PAGE_SIZE, data.length);
+    const pageData = data.slice(start, end);
+
+    body.innerHTML = pageData.length === 0
+        ? '<tr><td colspan="4" style="text-align:center; color:#555; padding:20px;">No overlaps found</td></tr>'
+        : pageData.map(r => `
+            <tr>
+                <td style="font-family:monospace; font-size:11px;">${r.compguid}</td>
+                <td>${r.thisCatSubs}</td>
+                <td><span class="badge badge-active">${r.otherCategory}</span></td>
+                <td>${r.otherSubs}</td>
+            </tr>
+        `).join('');
+
+    pagination.innerHTML = totalPages > 1 ? `
+        <button onclick="changeCompOverlapPage(-1)" ${compOverlapPage === 0 ? 'disabled' : ''}>← Prev</button>
+        <span>Page ${compOverlapPage + 1} of ${totalPages} (${data.length.toLocaleString()} records)</span>
+        <button onclick="changeCompOverlapPage(1)" ${compOverlapPage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>
+    ` : `<span>${data.length.toLocaleString()} records</span>`;
+}
+
+function renderGstinOverlapPage(cd) {
+    const body = document.getElementById('modalGstinOverlapBody');
+    const pagination = document.getElementById('gstinOverlapPagination');
+    const data = cd.gstinOverlapDetails;
+    const totalPages = Math.ceil(data.length / OVERLAP_PAGE_SIZE);
+    const start = gstinOverlapPage * OVERLAP_PAGE_SIZE;
+    const end = Math.min(start + OVERLAP_PAGE_SIZE, data.length);
+    const pageData = data.slice(start, end);
+
+    body.innerHTML = pageData.length === 0
+        ? '<tr><td colspan="4" style="text-align:center; color:#555; padding:20px;">No overlaps found</td></tr>'
+        : pageData.map(r => `
+            <tr>
+                <td style="font-family:monospace; font-size:11px;">${r.gstin}</td>
+                <td>${r.thisCatSubs}</td>
+                <td><span class="badge badge-active">${r.otherCategory}</span></td>
+                <td>${r.otherSubs}</td>
+            </tr>
+        `).join('');
+
+    pagination.innerHTML = totalPages > 1 ? `
+        <button onclick="changeGstinOverlapPage(-1)" ${gstinOverlapPage === 0 ? 'disabled' : ''}>← Prev</button>
+        <span>Page ${gstinOverlapPage + 1} of ${totalPages} (${data.length.toLocaleString()} records)</span>
+        <button onclick="changeGstinOverlapPage(1)" ${gstinOverlapPage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>
+    ` : `<span>${data.length.toLocaleString()} records</span>`;
+}
+
+function changeCompOverlapPage(delta) {
+    if (!currentModalCategory || !computedResults) return;
+    compOverlapPage += delta;
+    renderCompOverlapPage(computedResults.categories[currentModalCategory]);
+}
+
+function changeGstinOverlapPage(delta) {
+    if (!currentModalCategory || !computedResults) return;
+    gstinOverlapPage += delta;
+    renderGstinOverlapPage(computedResults.categories[currentModalCategory]);
+}
+
+function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.remove('active');
+    document.body.style.overflow = '';
+    currentModalCategory = null;
+
+    // Destroy modal charts
+    ['modalChartCustCluster', 'modalChartPartCluster', 'modalChartTopPartners'].forEach(id => {
+        if (chartInstances[id]) {
+            chartInstances[id].destroy();
+            delete chartInstances[id];
+        }
+    });
+}
+
+// Close modal on overlay click
+document.getElementById('categoryModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCategoryModal();
+});
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCategoryModal();
+});
+
+// ========== INITIAL STATE ==========
+document.getElementById('loadingOverlay').classList.add('hidden');
 </script>
 </body>
 </html>
